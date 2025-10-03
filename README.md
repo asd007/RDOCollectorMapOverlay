@@ -307,7 +307,7 @@ rdo_overlay/
 
 **Clone and Install:**
 
-```bash
+```shell
 # Clone repository
 git clone https://github.com/asd007/RDOCollectorMapOverlay.git
 cd RDOCollectorMapOverlay
@@ -328,12 +328,12 @@ cd ..
 ### Local Development
 
 **Run Backend (Terminal 1):**
-```bash
+```shell
 python app.py
 ```
 
 **Run Frontend (Terminal 2):**
-```bash
+```shell
 cd frontend
 npm run dev  # Development mode with DevTools
 ```
@@ -343,13 +343,13 @@ The backend will start on `http://127.0.0.1:5000` and the frontend will connect 
 ### Running Tests
 
 **Synthetic Tests:**
-```bash
+```shell
 python tests/test_matching.py
 ```
 Tests matching accuracy using programmatically generated viewports.
 
 **Real Gameplay Tests:**
-```bash
+```shell
 python tests/run_real_tests.py
 ```
 Tests against 9 real gameplay screenshots with ground truth positions.
@@ -360,7 +360,7 @@ Tests run automatically on GitHub Actions for every pull request.
 ### Building a Release
 
 **Full Build:**
-```bash
+```shell
 node .build/build-release.js
 ```
 
@@ -369,7 +369,7 @@ This will:
 2. Build frontend with electron-builder → `build/frontend/RDO-Map-Overlay-Setup.exe`
 
 **Test Backend Bundle:**
-```bash
+```shell
 node .build/build-backend.js
 build/backend/rdo-overlay-backend.exe  # Should start server
 ```
@@ -416,21 +416,26 @@ logging.basicConfig(level=logging.DEBUG)
 ```
 
 **Frontend Logging:**
-Frontend logs to `frontend/renderer.log`. Use:
-```bash
-tail -f frontend/renderer.log
+Frontend logs to `frontend/renderer.log`. View with:
+```powershell
+# PowerShell
+Get-Content frontend/renderer.log -Wait
+
+# Or open in your editor
+code frontend/renderer.log  # VS Code
+notepad frontend/renderer.log  # Notepad
 ```
 
 **Capture Test Data:**
 Use the test data collector to capture ground truth:
-```bash
+```shell
 python tests/test_data_collector.py
 ```
 Then press F9 in-game to capture screenshot + position.
 
 **Performance Profiling:**
 Check `/profiling-stats` endpoint:
-```bash
+```shell
 curl http://127.0.0.1:5000/profiling-stats
 ```
 
