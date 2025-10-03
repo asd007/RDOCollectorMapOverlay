@@ -14,6 +14,7 @@ from config import SERVER, MAP_DIMENSIONS, SCREENSHOT
 from core import CoordinateTransform, MapLoader, CollectiblesLoader
 from core.continuous_capture import ContinuousCaptureService
 from core.image_preprocessing import preprocess_for_matching
+from core.port_manager import find_available_port, write_port_file
 from matching.cascade_scale_matcher import CascadeScaleMatcher, ScaleConfig
 from matching import SimpleMatcher
 from api import OverlayState, create_app
@@ -231,6 +232,16 @@ def main():
         print("\nFailed to initialize system. Exiting.")
         sys.exit(1)
 
+    # Find available port (dynamic allocation for packaged app)
+    try:
+        port = find_available_port(start_port=SERVER.PORT)
+        port_file = write_port_file(port)
+        print(f"Using port: {port}")
+        print(f"Port file: {port_file}")
+    except RuntimeError as e:
+        print(f"\nFailed to find available port: {e}")
+        sys.exit(1)
+
     # Start continuous capture service if available
     if state.capture_service:
         state.capture_service.start()
@@ -244,7 +255,7 @@ def main():
         state.capture_service.socketio = socketio
 
     # Start server
-    print(f"Server starting on http://{SERVER.HOST}:{SERVER.PORT}")
+    print(f"Server starting on http://{SERVER.HOST}:{port}")
     print("Press Ctrl+C to stop\n")
 
     try:
@@ -257,7 +268,7 @@ def main():
         socketio.run(
             app,
             host=SERVER.HOST,
-            port=SERVER.PORT,
+            port=port,  # Use dynamic port
             debug=False,  # Disable debug mode
             allow_unsafe_werkzeug=True  # Suppress werkzeug warning
         )

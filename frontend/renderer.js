@@ -15,8 +15,29 @@ const { ipcRenderer } = require('electron');
 const axios = require('axios');
 const io = require('socket.io-client');
 
-// Configuration
-const BACKEND_URL = 'http://127.0.0.1:5000';
+// Configuration - backend URL will be set dynamically
+let BACKEND_URL = 'http://127.0.0.1:5000';  // Default fallback
+
+// Initialize connection wrapper
+function initializeConnection() {
+    initialize();
+}
+
+// Get dynamic backend port from main process
+(async () => {
+    try {
+        const port = await ipcRenderer.invoke('get-backend-port');
+        BACKEND_URL = `http://127.0.0.1:${port}`;
+        console.log(`Backend URL: ${BACKEND_URL}`);
+
+        // Initialize connection after we have the port
+        initializeConnection();
+    } catch (error) {
+        console.error('Failed to get backend port:', error);
+        // Fall back to default port 5000
+        initializeConnection();
+    }
+})();
 
 // Canvas setup
 const canvas = document.getElementById('overlay-canvas');
@@ -637,5 +658,4 @@ ipcRenderer.on('refresh-data', () => {
   refreshData();
 });
 
-// Start initialization
-initialize();
+// Initialization is handled by async function at the top after getting backend port
