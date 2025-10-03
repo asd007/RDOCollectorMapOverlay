@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Welcome to RDO Map Overlay</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 100%);
+            color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            background: #252525;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            padding: 40px;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #888;
+            font-size: 14px;
+            margin-bottom: 24px;
+        }
+
+        .section {
+            margin-bottom: 24px;
+        }
+
+        .section h2 {
+            font-size: 16px;
+            color: #4CAF50;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+        }
+
+        .section h2::before {
+            content: "•";
+            margin-right: 8px;
+            font-size: 20px;
+        }
+
+        .section p {
+            color: #aaa;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .warning {
+            background: #3a2a1a;
+            border-left: 3px solid #ff9800;
+            padding: 16px;
+            border-radius: 4px;
+            margin-bottom: 24px;
+        }
+
+        .warning h2 {
+            color: #ff9800;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .warning p {
+            color: #ffcc80;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .checkbox-container {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 24px;
+            padding: 16px;
+            background: #2a2a2a;
+            border-radius: 6px;
+        }
+
+        .checkbox-container input[type="checkbox"] {
+            margin-right: 12px;
+            margin-top: 3px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .checkbox-container label {
+            color: #ccc;
+            font-size: 13px;
+            line-height: 1.5;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        button {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-accept {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-accept:hover:not(:disabled) {
+            background: #45a049;
+        }
+
+        .btn-accept:disabled {
+            background: #3a3a3a;
+            color: #666;
+            cursor: not-allowed;
+        }
+
+        .btn-decline {
+            background: #3a3a3a;
+            color: #aaa;
+        }
+
+        .btn-decline:hover {
+            background: #4a4a4a;
+        }
+
+        .footer {
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #3a3a3a;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to RDO Map Overlay</h1>
+        <div class="subtitle">Please read and accept the following before continuing</div>
+
+        <div class="warning">
+            <h2>⚠️ Important: Use at Your Own Risk</h2>
+            <p>
+                This overlay tool is NOT affiliated with Rockstar Games. While it does NOT read game memory
+                or modify files, we cannot guarantee it won't be detected by anti-cheat systems.
+                <strong>Using this software may result in game bans or account suspensions.</strong>
+            </p>
+        </div>
+
+        <div class="section">
+            <h2>What This Tool Does</h2>
+            <p>
+                RDO Map Overlay displays collectible locations on your screen by matching screenshots
+                to a reference map using computer vision. It does NOT provide unfair advantages,
+                read game memory, or modify game files.
+            </p>
+        </div>
+
+        <div class="section">
+            <h2>No Warranty</h2>
+            <p>
+                This software is provided "AS IS" with no guarantees. We are not responsible for
+                any issues, including but not limited to: game bans, system crashes, or data loss.
+            </p>
+        </div>
+
+        <div class="section">
+            <h2>Your Responsibilities</h2>
+            <p>
+                By using this software, you agree to comply with Red Dead Online's Terms of Service
+                and accept all risks. You understand that Rockstar Games may prohibit overlay software.
+            </p>
+        </div>
+
+        <div class="checkbox-container">
+            <input type="checkbox" id="accept-checkbox">
+            <label for="accept-checkbox">
+                I have read and understand the risks. I agree to the terms in the End User License Agreement
+                and will not hold the developers responsible for any consequences of using this software.
+            </label>
+        </div>
+
+        <div class="buttons">
+            <button class="btn-decline" onclick="onDecline()">Exit</button>
+            <button class="btn-accept" id="accept-btn" disabled onclick="onAccept()">Accept & Continue</button>
+        </div>
+
+        <div class="footer">
+            Not affiliated with Rockstar Games or Take-Two Interactive<br>
+            Red Dead Online is a trademark of Take-Two Interactive
+        </div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+        const checkbox = document.getElementById('accept-checkbox');
+        const acceptBtn = document.getElementById('accept-btn');
+
+        // Enable accept button when checkbox is checked
+        checkbox.addEventListener('change', () => {
+            acceptBtn.disabled = !checkbox.checked;
+        });
+
+        function onAccept() {
+            ipcRenderer.send('disclaimer-accepted');
+        }
+
+        function onDecline() {
+            ipcRenderer.send('disclaimer-declined');
+        }
+
+        // Handle Enter key
+        document.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !acceptBtn.disabled) {
+                onAccept();
+            }
+        });
+    </script>
+</body>
+</html>

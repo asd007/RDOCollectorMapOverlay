@@ -1,0 +1,76 @@
+RDO MAP OVERLAY - END USER LICENSE AGREEMENT
+
+Last Updated: October 2025
+
+BY INSTALLING OR USING THIS SOFTWARE, YOU AGREE TO THE FOLLOWING TERMS:
+
+1. LICENSE GRANT
+   This software is licensed under the MIT License (see LICENSE file). You may use,
+   modify, and distribute this software freely, subject to the conditions below.
+
+2. WHAT THIS SOFTWARE DOES
+   RDO Map Overlay is a visual overlay tool for Red Dead Online that:
+   - Displays collectible locations on screen
+   - Uses computer vision to match screenshots to a reference map
+   - Does NOT read game memory or modify game files
+   - Does NOT provide any unfair gameplay advantages
+
+3. NO WARRANTY
+   This software is provided "AS IS" without warranty of any kind. We make no
+   guarantees that it will:
+   - Work correctly with your system or game
+   - Be free from errors or bugs
+   - Be compatible with future game updates
+   - Not be detected by anti-cheat systems (use at your own risk)
+
+4. LIMITATION OF LIABILITY
+   The developers are NOT liable for:
+   - Game bans or account suspensions
+   - System crashes or data loss
+   - Any damages arising from use of this software
+   - Third-party content (map data, collectibles API)
+
+5. USER RESPONSIBILITIES
+   You agree to:
+   - Use this software at your own risk
+   - Comply with Red Dead Online's Terms of Service
+   - Not hold the developers responsible for any consequences
+   - Understand that Rockstar Games may prohibit overlay software
+
+6. THIRD-PARTY COMPONENTS
+   This software downloads and uses:
+   - Python runtime from python.org
+   - OpenCV and other packages from PyPI
+   - Map data from community sources
+   - Collectibles data from Jean Ropke's Collectors Map API
+
+   These components are subject to their own licenses and terms.
+
+7. DATA & PRIVACY
+   This software:
+   - Does NOT collect or transmit personal data
+   - Does NOT connect to our servers (all downloads are from official sources)
+   - Only captures local screenshots for matching (never uploaded)
+   - May download updates from GitHub
+
+8. UPDATES & MODIFICATIONS
+   - We may update this software and terms at any time
+   - Continued use after updates means you accept the new terms
+   - You are responsible for keeping the software updated
+
+9. TERMINATION
+   This license is effective until terminated. Your rights terminate automatically
+   if you fail to comply with these terms.
+
+10. GOVERNING LAW
+    This agreement is governed by the laws of your jurisdiction. If any provision
+    is found invalid, the remaining provisions remain in effect.
+
+DISCLAIMER: This is an independent fan-made tool. Not affiliated with, endorsed by,
+or sponsored by Rockstar Games or Take-Two Interactive. Red Dead Online and Red Dead
+Redemption are trademarks of Take-Two Interactive.
+
+BY CLICKING "I AGREE" OR INSTALLING THIS SOFTWARE, YOU ACKNOWLEDGE THAT YOU HAVE
+READ, UNDERSTOOD, AND AGREE TO BE BOUND BY THESE TERMS.
+
+If you do not agree, do not install or use this software.
