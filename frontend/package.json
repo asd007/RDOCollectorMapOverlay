@@ -33,6 +33,8 @@
       "output": "../build/frontend"
     },
     "win": {
+      "sign": false,
+      "verifyUpdateCodeSignature": false,
       "target": [
         {
           "target": "portable",

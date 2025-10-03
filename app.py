@@ -57,9 +57,22 @@ def initialize_system():
 
         # Load map and preprocess with optimized resize-first order
         print("Loading map with optimized preprocessing (resize in grayscale)...")
-        from config.paths import CachePaths
+        from config.paths import CachePaths, ExternalURLs
+
+        # Check if map exists, download if needed
         hq_source = CachePaths.find_hq_map_source()
         if not hq_source:
+            print("HQ map not found locally - downloading from GitHub...")
+            try:
+                from core.map_downloader import ensure_map_available
+                hq_source = ensure_map_available(ExternalURLs.HQ_MAP_DOWNLOAD_URL)
+            except Exception as e:
+                print(f"ERROR: Failed to download HQ map: {e}")
+                print("\nPlease manually download rdr2_map_hq.png and place it in:")
+                print(f"  - {CachePaths.DATA_DIR / CachePaths.HQ_MAP_SOURCE_FILE}")
+                return None
+
+        if not hq_source or not hq_source.exists():
             print("ERROR: Failed to find HQ map!")
             return None
 

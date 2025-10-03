@@ -11,7 +11,8 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[
-        ('data/rdr2_map_hq.png', 'data'),
+        # Map downloaded on first launch to reduce installer size
+        # ('data/rdr2_map_hq.png', 'data'),
         ('config/*.py', 'config'),
     ],
     hiddenimports=[
@@ -30,6 +31,7 @@ a = Analysis(
         'win32con',
         'windows_capture',
         'core.port_manager',
+        'core.map_downloader',
     ],
     hookspath=[],
     hooksconfig={},

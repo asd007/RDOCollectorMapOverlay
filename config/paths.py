@@ -35,13 +35,28 @@ class CachePaths:
     @classmethod
     def find_hq_map_source(cls):
         """Look for HQ map in multiple locations"""
+        import os
+        import sys
+
         # Check in order of preference
         locations = [
             Path(cls.HQ_MAP_SOURCE_FILE),  # Current directory
             cls.DATA_DIR / cls.HQ_MAP_SOURCE_FILE,  # data directory
             cls.CACHE_DIR / cls.HQ_MAP_SOURCE_FILE,  # cache directory
         ]
-        
+
+        # Also check downloaded cache location (%APPDATA% on Windows)
+        if sys.platform == 'win32':
+            appdata = os.getenv('APPDATA')
+        elif sys.platform == 'darwin':
+            appdata = os.path.expanduser('~/Library/Application Support')
+        else:
+            appdata = os.path.expanduser('~/.local/share')
+
+        if appdata:
+            downloaded_map = Path(appdata) / 'RDO-Map-Overlay' / 'data' / cls.HQ_MAP_SOURCE_FILE
+            locations.insert(0, downloaded_map)  # Check downloaded location first
+
         for location in locations:
             if location.exists():
                 return location
@@ -53,6 +68,10 @@ class ExternalURLs:
     # Joan Ropke's Collectors Map API
     ROPKE_ITEMS_API = "https://jeanropke.github.io/RDR2CollectorsMap/data/items.json"
     ROPKE_CYCLES_API = "https://jeanropke.github.io/RDR2CollectorsMap/data/cycles.json"
+
+    # HQ Map download URL (167MB PNG from GitHub raw content)
+    # Uses raw.githubusercontent.com for direct file access (works with Git LFS)
+    HQ_MAP_DOWNLOAD_URL = "https://raw.githubusercontent.com/YOUR_USERNAME/rdo_overlay/main/data/rdr2_map_hq.png"
 
 
 # Create singleton instances
