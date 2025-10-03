@@ -64,8 +64,7 @@
       "shortcutName": "RDO Map Overlay",
       "installerIcon": "icon.ico",
       "uninstallerIcon": "icon.ico",
-      "license": "../LICENSE",
-      "sign": null
+      "license": "../LICENSE"
     },
     "forceCodeSigning": false
   }
