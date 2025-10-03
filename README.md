@@ -399,6 +399,12 @@ dist/backend/rdo-overlay-backend.exe  # Should start server
 - Add entry to RELEASE_NOTES.md
 - Ensure CI passes
 
+**Test Data Management:**
+- **Ground truth data**: Save to `tests/test_data/` (Git-tracked) - real gameplay screenshots with JSON metadata
+- **Generated outputs**: Save to `tests/data/generated/` (Git-ignored) - debug visualizations, profiling results, temporary files
+- Never commit temporary test outputs, debug images, or profiling data
+- Use `test_data_collector.py` to capture new ground truth test cases
+
 ### Debug Tips
 
 **Backend Logging:**
