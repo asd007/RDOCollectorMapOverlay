@@ -18,7 +18,7 @@ console.log('━━━━━━━━━━━━━━━━━━━━━━�
 
 // Check if PyInstaller is installed
 try {
-  execSync('pyinstaller --version', { stdio: 'ignore' });
+  execSync('python -m PyInstaller --version', { stdio: 'ignore' });
 } catch (e) {
   console.error('❌ PyInstaller not found!');
   console.error('Install with: pip install pyinstaller');
@@ -39,7 +39,7 @@ fs.mkdirSync(TEMP_DIR, { recursive: true });
 console.log('📦 Running PyInstaller...');
 try {
   execSync(
-    `pyinstaller app.spec --clean --noconfirm --distpath "${BACKEND_BUILD}" --workpath "${TEMP_DIR}"`,
+    `python -m PyInstaller app.spec --clean --noconfirm --distpath "${BACKEND_BUILD}" --workpath "${TEMP_DIR}"`,
     {
       cwd: ROOT_DIR,
       stdio: 'inherit'
