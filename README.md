@@ -55,6 +55,44 @@ Persistent status bar at the top of the screen shows:
 
 The overlay uses advanced computer vision (AKAZE features + cascade matching) to automatically detect your position on the map by analyzing your in-game minimap/map screen.
 
+## Safety & Legal
+
+### How This Tool Works
+
+This overlay is a **passive, screen-based tool** that works similarly to having a second monitor with a map open:
+
+**What it DOES:**
+- ✅ Captures your game window using Windows Graphics Capture API (same as OBS, Discord, etc.)
+- ✅ Analyzes the captured images using computer vision (OpenCV)
+- ✅ Displays collectible markers as a transparent overlay
+- ✅ Fetches public collectible data from Joan Ropke's API
+
+**What it DOES NOT do:**
+- ❌ Does NOT read game memory or process data
+- ❌ Does NOT inject code or DLLs into the game
+- ❌ Does NOT modify game files or behavior
+- ❌ Does NOT send any inputs to the game
+- ❌ Does NOT communicate with Rockstar servers
+
+### Third-Party Tool Policy
+
+**Use at your own risk.** While this tool operates entirely outside the game process using only screen capture (similar to streaming software), Rockstar Games' policy on third-party tools is:
+
+> "Use of unauthorized third-party software designed to give players an unfair advantage may result in account restrictions."
+
+**Our position:**
+- This tool provides information that is already publicly available (collectible locations from community resources)
+- It does not automate gameplay, modify game behavior, or provide information not visible to all players
+- Similar to using a web browser or second monitor with a community map open
+
+However, **we cannot guarantee that Rockstar will not take action** against accounts using this tool. Use your own judgment and discretion.
+
+**Recommendation:** If concerned, use this tool for planning routes outside the game rather than as a real-time overlay.
+
+### No Warranty
+
+This software is provided "as is" without warranty of any kind. See the [LICENSE](LICENSE) file for full details.
+
 ## Installation
 
 ### Windows (Recommended)
@@ -380,7 +418,9 @@ curl http://127.0.0.1:5000/profiling-stats
 
 ## License
 
-MIT License - see LICENSE file for details.
+MIT License - see [LICENSE](LICENSE) file for full details.
+
+**Summary:** Free to use, modify, and distribute. No warranty provided.
 
 ## Credits
 

@@ -216,4 +216,14 @@ None (initial release).
 
 ---
 
-_This project is not affiliated with Rockstar Games or Take-Two Interactive._
+---
+
+## Legal Disclaimer
+
+This project is **not affiliated with, endorsed by, or sponsored by Rockstar Games or Take-Two Interactive.**
+
+**Use at your own risk.** This tool operates using screen capture technology and does not read game memory, inject code, or modify game files. However, Rockstar Games reserves the right to restrict accounts using third-party tools.
+
+The developers of this tool are not responsible for any consequences resulting from its use, including but not limited to account restrictions or bans.
+
+See [README.md - Safety & Legal](README.md#safety--legal) for detailed information.
