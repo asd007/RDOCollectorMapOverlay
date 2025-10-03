@@ -1,0 +1,248 @@
+THIRD-PARTY LICENSES AND ATTRIBUTIONS
+
+This software uses the following third-party components. Each component is subject
+to its own license terms, reproduced below.
+
+================================================================================
+
+PYTHON RUNTIME
+https://www.python.org/
+License: Python Software Foundation License (PSF License)
+
+Copyright © 2001-2023 Python Software Foundation. All Rights Reserved.
+
+Python is licensed under the PSF License, which is a BSD-style license.
+Full license text: https://docs.python.org/3/license.html
+
+================================================================================
+
+OPENCV-PYTHON (4.8.1.78)
+https://github.com/opencv/opencv-python
+License: Apache License 2.0 / MIT License
+
+Copyright (c) OpenCV team
+
+Licensed under the Apache License, Version 2.0
+Full license: http://www.apache.org/licenses/LICENSE-2.0
+
+================================================================================
+
+NUMPY (1.24.3)
+https://numpy.org/
+License: BSD 3-Clause License
+
+Copyright (c) 2005-2023, NumPy Developers.
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification,
+are permitted provided that conditions are met. Full license at:
+https://numpy.org/doc/stable/license.html
+
+================================================================================
+
+FLASK (3.0.0)
+https://flask.palletsprojects.com/
+License: BSD 3-Clause License
+
+Copyright 2010 Pallets
+
+Redistribution and use permitted under BSD terms.
+Full license: https://github.com/pallets/flask/blob/main/LICENSE.rst
+
+================================================================================
+
+FLASK-CORS (4.0.0)
+https://github.com/corydolphin/flask-cors
+License: MIT License
+
+Copyright (c) 2013-2023 Cory Dolphin
+
+Permission is hereby granted, free of charge, to any person obtaining a copy...
+Full license: https://github.com/corydolphin/flask-cors/blob/main/LICENSE
+
+================================================================================
+
+FLASK-SOCKETIO (5.3.4)
+https://github.com/miguelgrinberg/Flask-SocketIO
+License: MIT License
+
+Copyright (c) 2014 Miguel Grinberg
+
+Permission is hereby granted, free of charge, to any person obtaining a copy...
+
+================================================================================
+
+REQUESTS (2.31.0)
+https://github.com/psf/requests
+License: Apache License 2.0
+
+Copyright 2019 Kenneth Reitz
+
+Licensed under the Apache License, Version 2.0
+Full license: https://github.com/psf/requests/blob/main/LICENSE
+
+================================================================================
+
+PILLOW (10.1.0)
+https://python-pillow.org/
+License: HPND License (Historical Permission Notice and Disclaimer)
+
+Copyright © 1997-2011 by Secret Labs AB
+Copyright © 1995-2011 by Fredrik Lundh
+Copyright © 2010-2023 by Jeffrey A. Clark (Alex) and contributors
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any purpose and without fee is hereby granted...
+Full license: https://github.com/python-pillow/Pillow/blob/main/LICENSE
+
+================================================================================
+
+WINDOWS-CAPTURE (1.5.0)
+https://github.com/NiiightmareXD/windows-capture
+License: MIT License
+
+Copyright (c) NiiightmareXD
+
+Permission is hereby granted, free of charge, to any person obtaining a copy...
+
+================================================================================
+
+PYWIN32 (306)
+https://github.com/mhammond/pywin32
+License: Python Software Foundation License
+
+Copyright (c) 1994-2008, Mark Hammond
+All rights reserved.
+
+Licensed under PSF License.
+
+================================================================================
+
+ELECTRON (27.0.0)
+https://www.electronjs.org/
+License: MIT License
+
+Copyright (c) Electron contributors
+Copyright (c) 2013-2020 GitHub Inc.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files...
+Full license: https://github.com/electron/electron/blob/main/LICENSE
+
+================================================================================
+
+ELECTRON-BUILDER (24.6.4)
+https://www.electron.build/
+License: MIT License
+
+Copyright (c) 2015 Loopline Systems
+
+Permission is hereby granted, free of charge, to any person obtaining a copy...
+
+================================================================================
+
+ELECTRON-UPDATER (6.1.4)
+https://github.com/electron-userland/electron-builder
+License: MIT License
+
+Copyright (c) 2015 Loopline Systems
+
+Permission is hereby granted, free of charge, to any person obtaining a copy...
+
+================================================================================
+
+AXIOS (1.6.0)
+https://github.com/axios/axios
+License: MIT License
+
+Copyright (c) 2014-present Matt Zabriskie
+
+Permission is hereby granted, free of charge, to any person obtaining a copy...
+
+================================================================================
+
+SOCKET.IO-CLIENT (4.8.1)
+https://socket.io/
+License: MIT License
+
+Copyright (c) 2014 Guillermo Rauch
+
+Permission is hereby granted, free of charge, to any person obtaining a copy...
+
+================================================================================
+
+ELECTRON-OVERLAY-WINDOW (3.0.0)
+https://github.com/SnosMe/electron-overlay-window
+License: MIT License
+
+Copyright (c) 2020 SnosMe
+
+Permission is hereby granted, free of charge, to any person obtaining a copy...
+
+================================================================================
+
+DATA SOURCES AND ATTRIBUTIONS
+
+JEAN ROPKE'S RDR2 COLLECTORS MAP
+https://jeanropke.github.io/RDR2CollectorsMap/
+Creator: Jean Ropke
+
+This application uses collectible location data from Jean Ropke's RDR2 Collectors
+Map. This data is used with respect to the original creator's work.
+
+We are grateful to Jean Ropke and contributors for maintaining this valuable
+community resource.
+
+================================================================================
+
+HQ MAP IMAGE
+Source: RDR2 Map HQ Nexus Mod
+https://www.nexusmods.com/reddeadredemption2/mods/1704
+
+High-quality game map used as reference for matching. Credit to the original
+map creators and the Nexus Mods community.
+
+================================================================================
+
+FULL LICENSE TEXTS
+
+For complete license texts of all components, please visit:
+- Python: https://docs.python.org/3/license.html
+- OpenCV: https://opencv.org/license/
+- NumPy: https://numpy.org/doc/stable/license.html
+- Flask: https://flask.palletsprojects.com/en/latest/license/
+- Electron: https://github.com/electron/electron/blob/main/LICENSE
+- Individual package repositories for other components
+
+================================================================================
+
+SUMMARY OF LICENSE TYPES USED
+
+- MIT License: Electron, Flask-CORS, Flask-SocketIO, Socket.IO, Axios, etc.
+- Apache 2.0: OpenCV, Requests
+- BSD 3-Clause: NumPy, Flask
+- PSF License: Python runtime, PyWin32
+- HPND: Pillow
+
+All licenses are permissive and allow commercial and non-commercial use with
+proper attribution.
+
+================================================================================
+
+ATTRIBUTION REQUIREMENTS
+
+This software complies with all attribution requirements of the above licenses by:
+
+1. Including this THIRD_PARTY_LICENSES.txt file with the distribution
+2. Preserving original copyright notices
+3. Providing links to full license texts
+4. Acknowledging third-party data sources (Jean Ropke's Map, HQ Map mod)
+
+================================================================================
+
+For questions about licensing, please refer to:
+- Project LICENSE file (MIT License)
+- Individual component license files
+- This THIRD_PARTY_LICENSES.txt file
+
+Last Updated: October 2025

@@ -12,8 +12,10 @@ BY INSTALLING OR USING THIS SOFTWARE, YOU AGREE TO THE FOLLOWING TERMS:
    RDO Map Overlay is a visual overlay tool for Red Dead Online that:
    - Displays collectible locations on screen
    - Uses computer vision to match screenshots to a reference map
-   - Does NOT read game memory or modify game files
-   - Does NOT provide any unfair gameplay advantages
+   - Only scans your screen pixels (no game memory reading)
+   - Does NOT modify game files or inject code
+   - Does NOT interact with the game process in any way
+   - Functions like any other screen overlay (Discord, OBS, etc.)
 
 3. NO WARRANTY
    This software is provided "AS IS" without warranty of any kind. We make no
@@ -21,7 +23,7 @@ BY INSTALLING OR USING THIS SOFTWARE, YOU AGREE TO THE FOLLOWING TERMS:
    - Work correctly with your system or game
    - Be free from errors or bugs
    - Be compatible with future game updates
-   - Not be detected by anti-cheat systems (use at your own risk)
+   - Function correctly in all gameplay scenarios
 
 4. LIMITATION OF LIABILITY
    The developers are NOT liable for:
