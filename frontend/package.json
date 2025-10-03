@@ -1,0 +1,44 @@
+{
+  "name": "rdo-map-overlay",
+  "version": "1.0.0",
+  "description": "RDO Collectible Map Overlay using OpenCV alignment",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder"
+  },
+  "keywords": [
+    "rdo",
+    "red-dead-online",
+    "overlay",
+    "collectibles",
+    "opencv"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "electron": "^27.0.0",
+    "electron-overlay-window": "^3.0.0",
+    "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "electron-builder": "^24.6.4"
+  },
+  "build": {
+    "appId": "com.rdo.mapoverlay",
+    "productName": "RDO Map Overlay",
+    "win": {
+      "target": "nsis",
+      "icon": "icon.ico"
+    },
+    "files": [
+      "**/*",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!**/node_modules/*.d.ts",
+      "!**/node_modules/.bin"
+    ]
+  }
+}

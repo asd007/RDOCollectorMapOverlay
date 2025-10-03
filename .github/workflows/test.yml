@@ -1,0 +1,136 @@
+name: RDO Map Overlay Tests
+
+on:
+  push:
+    branches: [ main, initial_implementation ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Download RDO map (if needed)
+      run: |
+        # Check if map exists, if not download from releases or fail
+        if [ ! -f "data/rdr2_map_hq.png" ]; then
+          echo "::warning::Map file not found. Tests may fail."
+        fi
+
+    - name: Run synthetic tests
+      id: accuracy
+      run: |
+        python tests/test_matching.py > test_results.txt 2>&1
+        cat test_results.txt
+
+        # Extract success rate
+        SUCCESS_RATE=$(grep "Success Rate:" test_results.txt | grep -oP '\d+/\d+' | head -1)
+        SUCCESS_PCT=$(grep "Success Rate:" test_results.txt | grep -oP '\d+\.\d+%' | head -1)
+
+        echo "success_rate=$SUCCESS_RATE" >> $GITHUB_OUTPUT
+        echo "success_pct=$SUCCESS_PCT" >> $GITHUB_OUTPUT
+
+        # Calculate pass/fail (require ≥ 60% success)
+        PASSED=$(echo "$SUCCESS_RATE" | awk -F'/' '{if ($1/$2 >= 0.60) print "true"; else print "false"}')
+        echo "passed=$PASSED" >> $GITHUB_OUTPUT
+
+    - name: Run real gameplay tests
+      id: real_tests
+      if: always()
+      run: |
+        python tests/run_real_tests.py > real_test_results.txt 2>&1
+        cat real_test_results.txt
+
+        # Extract metrics
+        REAL_SUCCESS=$(grep "Success rate:" real_test_results.txt | grep -oP '\d+/\d+' | head -1)
+        REAL_SUCCESS_PCT=$(grep "Success rate:" real_test_results.txt | grep -oP '\d+\.\d+%' | head -1)
+        REAL_AVG_TIME=$(grep "Average time:" real_test_results.txt | grep -oP '\d+\.\d+' | head -1)
+
+        echo "real_success=$REAL_SUCCESS" >> $GITHUB_OUTPUT
+        echo "real_success_pct=$REAL_SUCCESS_PCT" >> $GITHUB_OUTPUT
+        echo "real_avg_time=${REAL_AVG_TIME}ms" >> $GITHUB_OUTPUT
+
+        # Pass if ≥ 80% success (real gameplay is harder)
+        REAL_PASSED=$(echo "$REAL_SUCCESS" | awk -F'/' '{if ($1/$2 >= 0.80) print "true"; else print "false"}')
+        echo "real_passed=$REAL_PASSED" >> $GITHUB_OUTPUT
+
+    - name: Check performance regression
+      id: performance
+      run: |
+        # Extract average matching time
+        AVG_TIME=$(grep "Overall" test_results.txt | awk '{print $2}' | sed 's/ms//')
+        echo "avg_time=${AVG_TIME}ms" >> $GITHUB_OUTPUT
+
+        # Warning threshold: 200ms
+        # Error threshold: 300ms
+        if (( $(echo "$AVG_TIME > 300" | bc -l) )); then
+          echo "::error::Performance regression detected: ${AVG_TIME}ms average (threshold: 300ms)"
+          echo "regression=critical" >> $GITHUB_OUTPUT
+        elif (( $(echo "$AVG_TIME > 200" | bc -l) )); then
+          echo "::warning::Performance slower than target: ${AVG_TIME}ms average (target: <200ms)"
+          echo "regression=warning" >> $GITHUB_OUTPUT
+        else
+          echo "Performance OK: ${AVG_TIME}ms average"
+          echo "regression=none" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Fail if synthetic accuracy is too low
+      if: steps.accuracy.outputs.passed == 'false'
+      run: |
+        echo "::error::Synthetic test failed: ${{ steps.accuracy.outputs.success_rate }} (${{ steps.accuracy.outputs.success_pct }})"
+        echo "Minimum required: 60%"
+        exit 1
+
+    - name: Fail if real gameplay accuracy is too low
+      if: steps.real_tests.outputs.real_passed == 'false'
+      run: |
+        echo "::error::Real gameplay test failed: ${{ steps.real_tests.outputs.real_success }} (${{ steps.real_tests.outputs.real_success_pct }})"
+        echo "Minimum required: 80%"
+        exit 1
+
+    - name: Post results summary
+      if: always()
+      run: |
+        echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Synthetic Tests" >> $GITHUB_STEP_SUMMARY
+        echo "- **Accuracy**: ${{ steps.accuracy.outputs.success_rate }} (${{ steps.accuracy.outputs.success_pct }})" >> $GITHUB_STEP_SUMMARY
+        echo "- **Average Time**: ${{ steps.performance.outputs.avg_time }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Status**: ${{ steps.accuracy.outputs.passed == 'true' && '✅ Passed' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
+
+        if [ "${{ steps.performance.outputs.regression }}" = "warning" ]; then
+          echo "- **Performance**: ⚠️ Slower than target" >> $GITHUB_STEP_SUMMARY
+        elif [ "${{ steps.performance.outputs.regression }}" = "critical" ]; then
+          echo "- **Performance**: ❌ Critical regression" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- **Performance**: ✅ OK" >> $GITHUB_STEP_SUMMARY
+        fi
+
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Real Gameplay Tests" >> $GITHUB_STEP_SUMMARY
+        echo "- **Accuracy**: ${{ steps.real_tests.outputs.real_success }} (${{ steps.real_tests.outputs.real_success_pct }})" >> $GITHUB_STEP_SUMMARY
+        echo "- **Average Time**: ${{ steps.real_tests.outputs.real_avg_time }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Status**: ${{ steps.real_tests.outputs.real_passed == 'true' && '✅ Passed' || '❌ Failed' }}" >> $GITHUB_STEP_SUMMARY
+
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results
+        path: |
+          test_results.txt
+          real_test_results.txt

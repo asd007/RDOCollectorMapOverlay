@@ -1,0 +1,187 @@
+{
+  "test_suite": "real_gameplay_tests",
+  "created_at": "2025-10-03T14:19:52.673279",
+  "total_cases": 9,
+  "test_cases": [
+    {
+      "test_id": "test_20251003_141521_761_0000",
+      "screenshot": "screenshots/test_20251003_141521_761_0000.png",
+      "expected_viewport": {
+        "map_x": 5529,
+        "map_y": 1201,
+        "map_w": 4264,
+        "map_h": 2402,
+        "center_x": 7661.0,
+        "center_y": 2402.0
+      },
+      "zoom_level": "zoomed_out",
+      "cascade_level": "Reliable (50%)",
+      "reference_timing": {
+        "capture_ms": 1.0142326354980469,
+        "match_ms": 150.92158317565918,
+        "overlay_ms": 0.0,
+        "total_ms": 161.4539623260498
+      }
+    },
+    {
+      "test_id": "test_20251003_141522_073_0001",
+      "screenshot": "screenshots/test_20251003_141522_073_0001.png",
+      "expected_viewport": {
+        "map_x": 5529,
+        "map_y": 1201,
+        "map_w": 4264,
+        "map_h": 2402,
+        "center_x": 7661.0,
+        "center_y": 2402.0
+      },
+      "zoom_level": "zoomed_out",
+      "cascade_level": "Reliable (50%)",
+      "reference_timing": {
+        "capture_ms": 1.1355876922607422,
+        "match_ms": 190.81473350524902,
+        "overlay_ms": 1.0018348693847656,
+        "total_ms": 202.41379737854004
+      }
+    },
+    {
+      "test_id": "test_20251003_141522_414_0002",
+      "screenshot": "screenshots/test_20251003_141522_414_0002.png",
+      "expected_viewport": {
+        "map_x": 5529,
+        "map_y": 1201,
+        "map_w": 4264,
+        "map_h": 2402,
+        "center_x": 7661.0,
+        "center_y": 2402.0
+      },
+      "zoom_level": "zoomed_out",
+      "cascade_level": "Reliable (50%)",
+      "reference_timing": {
+        "capture_ms": 1.5206336975097656,
+        "match_ms": 185.40406227111816,
+        "overlay_ms": 0.9984970092773438,
+        "total_ms": 198.4424591064453
+      }
+    },
+    {
+      "test_id": "test_20251003_141523_609_0003",
+      "screenshot": "screenshots/test_20251003_141523_609_0003.png",
+      "expected_viewport": {
+        "map_x": 5672,
+        "map_y": 1307,
+        "map_w": 3926,
+        "map_h": 2209,
+        "center_x": 7635.0,
+        "center_y": 2411.5
+      },
+      "zoom_level": "medium_zoom",
+      "cascade_level": "Reliable (50%)",
+      "reference_timing": {
+        "capture_ms": 1.005411148071289,
+        "match_ms": 163.73467445373535,
+        "overlay_ms": 0.9987354278564453,
+        "total_ms": 174.2575168609619
+      }
+    },
+    {
+      "test_id": "test_20251003_141523_890_0004",
+      "screenshot": "screenshots/test_20251003_141523_890_0004.png",
+      "expected_viewport": {
+        "map_x": 5672,
+        "map_y": 1307,
+        "map_w": 3926,
+        "map_h": 2209,
+        "center_x": 7635.0,
+        "center_y": 2411.5
+      },
+      "zoom_level": "medium_zoom",
+      "cascade_level": "Reliable (50%)",
+      "reference_timing": {
+        "capture_ms": 0.5121231079101562,
+        "match_ms": 152.87017822265625,
+        "overlay_ms": 0.0,
+        "total_ms": 161.3941192626953
+      }
+    },
+    {
+      "test_id": "test_20251003_141524_180_0005",
+      "screenshot": "screenshots/test_20251003_141524_180_0005.png",
+      "expected_viewport": {
+        "map_x": 5672,
+        "map_y": 1307,
+        "map_w": 3926,
+        "map_h": 2209,
+        "center_x": 7635.0,
+        "center_y": 2411.5
+      },
+      "zoom_level": "medium_zoom",
+      "cascade_level": "Reliable (50%)",
+      "reference_timing": {
+        "capture_ms": 0.0,
+        "match_ms": 151.2746810913086,
+        "overlay_ms": 0.0,
+        "total_ms": 160.80069541931152
+      }
+    },
+    {
+      "test_id": "test_20251003_141530_239_0006",
+      "screenshot": "screenshots/test_20251003_141530_239_0006.png",
+      "expected_viewport": {
+        "map_x": 6597,
+        "map_y": 1979,
+        "map_w": 1775,
+        "map_h": 998,
+        "center_x": 7484.5,
+        "center_y": 2478.0
+      },
+      "zoom_level": "zoomed_in",
+      "cascade_level": "Reliable (50%)",
+      "reference_timing": {
+        "capture_ms": 0.5064010620117188,
+        "match_ms": 174.31187629699707,
+        "overlay_ms": 0.0,
+        "total_ms": 187.3495578765869
+      }
+    },
+    {
+      "test_id": "test_20251003_141530_421_0007",
+      "screenshot": "screenshots/test_20251003_141530_421_0007.png",
+      "expected_viewport": {
+        "map_x": 6735,
+        "map_y": 2079,
+        "map_w": 1453,
+        "map_h": 824,
+        "center_x": 7461.5,
+        "center_y": 2491.0
+      },
+      "zoom_level": "zoomed_in",
+      "cascade_level": "Fast (25%)",
+      "reference_timing": {
+        "capture_ms": 3.0105113983154297,
+        "match_ms": 54.60643768310547,
+        "overlay_ms": 0.0,
+        "total_ms": 67.09408760070801
+      }
+    },
+    {
+      "test_id": "test_20251003_141530_708_0008",
+      "screenshot": "screenshots/test_20251003_141530_708_0008.png",
+      "expected_viewport": {
+        "map_x": 6789,
+        "map_y": 2119,
+        "map_w": 1329,
+        "map_h": 747,
+        "center_x": 7453.5,
+        "center_y": 2492.5
+      },
+      "zoom_level": "zoomed_in",
+      "cascade_level": "Reliable (50%)",
+      "reference_timing": {
+        "capture_ms": 1.0063648223876953,
+        "match_ms": 145.14756202697754,
+        "overlay_ms": 1.0001659393310547,
+        "total_ms": 155.57122230529785
+      }
+    }
+  ]
+}

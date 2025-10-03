@@ -1,0 +1,34 @@
+{
+  "test_id": "test_20251003_141530_708_0008",
+  "timestamp": "20251003_141530_708",
+  "screenshot_file": "screenshots/test_20251003_141530_708_0008.png",
+  "viewport": {
+    "map_x": 6789,
+    "map_y": 2119,
+    "map_w": 1329,
+    "map_h": 747,
+    "center_x": 7453.5,
+    "center_y": 2492.5
+  },
+  "zoom": {
+    "level": "zoomed_in",
+    "viewport_width": 1329,
+    "viewport_height": 747
+  },
+  "matching": {
+    "cascade_level": "Reliable (50%)",
+    "confidence": 1.0,
+    "inliers": 57,
+    "total_matches": 57
+  },
+  "timing": {
+    "capture_ms": 1.0063648223876953,
+    "match_ms": 145.14756202697754,
+    "overlay_ms": 1.0001659393310547,
+    "total_ms": 155.57122230529785
+  },
+  "screenshot_resolution": {
+    "width": 1920,
+    "height": 1080
+  }
+}
