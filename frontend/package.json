@@ -39,7 +39,8 @@
           "arch": ["x64"]
         }
       ],
-      "icon": "icon.ico"
+      "icon": "icon.ico",
+      "sign": null
     },
     "extraResources": [
       {
