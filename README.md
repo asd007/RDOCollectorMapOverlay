@@ -4,16 +4,20 @@
 ![Version](https://img.shields.io/github/v/release/asd007/RDOCollectorMapOverlay)
 ![License](https://img.shields.io/github/license/asd007/RDOCollectorMapOverlay)
 
-Pixel-perfect collectible tracking overlay for Red Dead Online using computer vision and real-time map matching.
+**A gap-closer between your game and the community map.** Collectible tracking overlay for Red Dead Online that eliminates the need to alt-tab to Joan Ropke's website.
+
+**Current Status:** Functional and usable, especially valuable for single-screen setups. Performance and accuracy are actively being improved toward the vision of pixel-perfect, real-time tracking.
 
 ## Features
 
-- **Automatic Position Detection**: Computer vision-based map matching - no manual positioning
-- **Real-Time Collectible Tracking**: Shows active collectibles from Joan Ropke's Collectors Map
+- **Automatic Position Detection**: Computer vision-based map matching - no manual positioning required
+- **In-Game Collectible Display**: Shows active collectibles from Joan Ropke's Collectors Map as overlay
 - **Zero-Configuration**: Double-click to start, press F9 to sync
 - **Always Up-to-Date**: Automatically fetches daily collectible cycles
-- **Non-Intrusive**: Transparent overlay sits on top of your game
-- **High Performance**: ~200ms matching time, 5fps continuous tracking
+- **Single-Screen Friendly**: No need to alt-tab or use second monitor
+- **Transparent Overlay**: Non-intrusive display over your game
+
+**Performance:** ~200ms matching time, 5fps tracking. Good enough to eliminate website switching, with ongoing improvements toward real-time precision.
 
 ## What You Get
 
@@ -53,7 +57,14 @@ Persistent status bar at the top of the screen shows:
 3. **Play**: Collectible markers appear automatically as you move
 4. **Collect**: Right-click markers to mark as collected
 
-The overlay uses advanced computer vision (AKAZE features + cascade matching) to automatically detect your position on the map by analyzing your in-game minimap/map screen.
+The overlay uses computer vision (AKAZE features + cascade matching) to automatically detect your position by analyzing your in-game map.
+
+**Why use this?**
+- **Single-screen users:** No more alt-tabbing to Joan Ropke's website
+- **Dual-screen users:** Frees up your second monitor for other uses
+- **All users:** Faster workflow than switching between game and browser
+
+**Current limitations:** Position accuracy and tracking speed are functional but not yet perfect. The tool is under active development toward real-time, pixel-perfect tracking.
 
 ## Safety & Legal
 
@@ -132,7 +143,9 @@ See [Contributing](#contributing) section for development setup.
 
 - **Open World View**: F9 sync works best with full map open (not zoomed in buildings/interiors)
 - **Clear Minimap**: Make sure no UI elements are blocking your minimap
-- **Re-sync if Lost**: If tracking seems off, just press F9 again
+- **Re-sync When Needed**: Position may drift over time - press F9 to resync
+- **Be Patient**: Initial sync can take a few seconds (~200ms per attempt)
+- **Expect Some Drift**: Markers may not be pixel-perfect but will get you close enough to find collectibles
 - **Check Connection**: Green dot in status bar = active tracking
 
 ## Troubleshooting
@@ -170,13 +183,18 @@ See [Contributing](#contributing) section for development setup.
 
 ### Markers in Wrong Position
 
-**Symptoms**: Collectible markers don't align with in-game locations
+**Symptoms**: Collectible markers don't align perfectly with in-game locations
 
-**Solutions**:
+**Expected Behavior:** Some position drift is normal with the current implementation. Markers should be close enough (within ~50-100 pixels) to help you locate collectibles.
+
+**Solutions to improve accuracy**:
 1. Press **F9** to re-sync your position
 2. Make sure you're using 1920×1080 resolution
 3. Check that game scaling is set to 100%
 4. Verify the game is in windowed fullscreen or fullscreen mode
+5. Sync from areas with distinct terrain features (not flat plains)
+
+**Note:** Perfect pixel-level accuracy is a work-in-progress goal. Current accuracy is sufficient for finding collectibles but not pixel-perfect.
 
 ### High CPU/Memory Usage
 

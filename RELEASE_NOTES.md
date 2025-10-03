@@ -29,10 +29,11 @@ First public release of RDO Map Overlay with full feature set.
 - Status bar with connection state, FPS, and match quality
 
 **Performance:**
-- ~200ms median matching time
-- 0.0px position error on real gameplay tests
-- 100% success rate on validation suite
+- ~200ms median matching time (functional, not yet real-time)
+- Test suite: 100% success rate with 0.0px error on controlled screenshots
+- Real-world usage: Position accuracy sufficient for collectible finding, not pixel-perfect
 - ~500MB RAM usage, ~5-10% CPU
+- 5fps tracking (adequate for walking/riding, may lag behind fast travel)
 
 **Developer Features:**
 - Comprehensive test suite (synthetic + real gameplay)
@@ -61,10 +62,19 @@ First public release of RDO Map Overlay with full feature set.
 
 #### Known Issues
 
-- **Resolution Limitation**: Currently supports 1920×1080 resolution only
-- **Windowed Mode Required**: Overlay requires Windowed Fullscreen mode (not Exclusive Fullscreen)
-- **Interior Matching**: F9 sync may fail in dense interior areas (use open world locations)
-- **Single Monitor**: Designed for single monitor setups (primary monitor)
+**Performance & Accuracy:**
+- **Position Drift**: Markers may drift over time, requiring periodic F9 re-sync
+- **Matching Speed**: ~200ms is functional but not truly real-time (goal: <100ms)
+- **Tracking Lag**: 5fps may not keep up with fast movement or fast travel
+- **Pixel Accuracy**: Markers are close but not pixel-perfect (work in progress)
+
+**Technical Limitations:**
+- **Resolution**: Currently supports 1920×1080 resolution only
+- **Window Mode**: Requires Windowed Fullscreen (not Exclusive Fullscreen)
+- **Interior Matching**: F9 sync may fail in buildings/dense interiors
+- **Single Monitor**: Designed for primary monitor only
+
+**Product Vision:** The goal is pixel-perfect, real-time tracking. Current version is a meaningful improvement over alt-tabbing to websites, especially for single-screen users, but there's room for improvement.
 
 #### Installation
 
