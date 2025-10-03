@@ -29,6 +29,9 @@
   "build": {
     "appId": "com.rdo.mapoverlay",
     "productName": "RDO Map Overlay",
+    "directories": {
+      "output": "../build/frontend"
+    },
     "win": {
       "target": [
         {
@@ -40,7 +43,7 @@
     },
     "extraResources": [
       {
-        "from": "../dist/backend",
+        "from": "../build/backend",
         "to": "backend",
         "filter": ["**/*"]
       }

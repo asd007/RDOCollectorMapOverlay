@@ -9,8 +9,9 @@ const fs = require('fs');
 const path = require('path');
 
 const ROOT_DIR = path.join(__dirname, '..');
-const DIST_DIR = path.join(ROOT_DIR, 'dist');
-const BACKEND_DIST = path.join(DIST_DIR, 'backend');
+const BUILD_DIR = path.join(ROOT_DIR, 'build');
+const BACKEND_BUILD = path.join(BUILD_DIR, 'backend');
+const TEMP_DIR = path.join(BUILD_DIR, 'temp');
 
 console.log('🔨 Building RDO Overlay Backend...');
 console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -26,38 +27,34 @@ try {
 
 // Clean previous builds
 console.log('🧹 Cleaning previous builds...');
-if (fs.existsSync(path.join(ROOT_DIR, 'build'))) {
-  fs.rmSync(path.join(ROOT_DIR, 'build'), { recursive: true });
-}
-if (fs.existsSync(BACKEND_DIST)) {
-  fs.rmSync(BACKEND_DIST, { recursive: true });
+if (fs.existsSync(BUILD_DIR)) {
+  fs.rmSync(BUILD_DIR, { recursive: true });
 }
 
-// Run PyInstaller
+// Create build directories
+fs.mkdirSync(BACKEND_BUILD, { recursive: true });
+fs.mkdirSync(TEMP_DIR, { recursive: true });
+
+// Run PyInstaller with custom output paths
 console.log('📦 Running PyInstaller...');
 try {
-  execSync('pyinstaller app.spec --clean --noconfirm', {
-    cwd: ROOT_DIR,
-    stdio: 'inherit'
-  });
+  execSync(
+    `pyinstaller app.spec --clean --noconfirm --distpath "${BACKEND_BUILD}" --workpath "${TEMP_DIR}"`,
+    {
+      cwd: ROOT_DIR,
+      stdio: 'inherit'
+    }
+  );
 } catch (e) {
   console.error('❌ PyInstaller build failed!');
   process.exit(1);
 }
 
-// Move to dist/backend for Electron
-console.log('📁 Organizing build output...');
-const pyinstallerDist = path.join(ROOT_DIR, 'dist', 'rdo-overlay-backend.exe');
-fs.mkdirSync(BACKEND_DIST, { recursive: true });
-fs.copyFileSync(
-  pyinstallerDist,
-  path.join(BACKEND_DIST, 'rdo-overlay-backend.exe')
-);
-
 // Get file size
-const stats = fs.statSync(path.join(BACKEND_DIST, 'rdo-overlay-backend.exe'));
+console.log('📁 Build complete...');
+const stats = fs.statSync(path.join(BACKEND_BUILD, 'rdo-overlay-backend.exe'));
 const sizeMB = (stats.size / 1024 / 1024).toFixed(1);
 
 console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 console.log(`✅ Backend built successfully!`);
-console.log(`📍 Output: dist/backend/rdo-overlay-backend.exe (${sizeMB} MB)`);
+console.log(`📍 Output: build/backend/rdo-overlay-backend.exe (${sizeMB} MB)`);

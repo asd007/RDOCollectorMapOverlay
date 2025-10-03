@@ -286,7 +286,7 @@ rdo_overlay/
 │   ├── test_data/                  # Real gameplay test data
 │   └── test_data_collector.py      # Ground truth capture tool
 │
-├── scripts/                        # Build scripts
+├── .build/                         # Build scripts
 │   ├── build-backend.js            # PyInstaller build
 │   └── build-release.js            # Full release build
 │
@@ -361,17 +361,17 @@ Tests run automatically on GitHub Actions for every pull request.
 
 **Full Build:**
 ```bash
-node scripts/build-release.js
+node .build/build-release.js
 ```
 
 This will:
-1. Build backend with PyInstaller → `dist/backend/rdo-overlay-backend.exe`
-2. Build frontend with electron-builder → `frontend/dist/RDO-Map-Overlay-Setup.exe`
+1. Build backend with PyInstaller → `build/backend/rdo-overlay-backend.exe`
+2. Build frontend with electron-builder → `build/frontend/RDO-Map-Overlay-Setup.exe`
 
 **Test Backend Bundle:**
 ```bash
-node scripts/build-backend.js
-dist/backend/rdo-overlay-backend.exe  # Should start server
+node .build/build-backend.js
+build/backend/rdo-overlay-backend.exe  # Should start server
 ```
 
 ### Coding Standards

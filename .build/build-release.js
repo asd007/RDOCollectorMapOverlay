@@ -32,7 +32,7 @@ async function main() {
   // Step 1: Build backend
   console.log('📦 Step 1/3: Building Backend');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  await run('node scripts/build-backend.js');
+  await run('node .build/build-backend.js');
   console.log('');
 
   // Step 2: Install frontend dependencies (if needed)
@@ -51,7 +51,8 @@ async function main() {
   console.log('║  ✅ Release Build Complete!           ║');
   console.log('╚════════════════════════════════════════╝');
   console.log('');
-  console.log('📍 Installer: frontend/dist/RDO-Map-Overlay-Setup.exe');
+  console.log('📍 Backend: build/backend/rdo-overlay-backend.exe');
+  console.log('📍 Installer: build/frontend/RDO-Map-Overlay-Setup.exe');
   console.log('');
 }
 
