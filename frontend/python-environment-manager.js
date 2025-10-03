@@ -261,7 +261,7 @@ class PythonEnvironmentManager {
   }
 
   /**
-   * Launch backend Python application
+   * Launch backend Python application with sandboxing
    */
   async launchBackend(backendScriptPath) {
     if (!this.isPythonInstalled()) {
@@ -269,9 +269,47 @@ class PythonEnvironmentManager {
     }
 
     return new Promise((resolve, reject) => {
+      // Sandboxed environment variables
+      const sandboxedEnv = {
+        // Use only our isolated Python installation
+        PYTHONHOME: this.pythonDir,
+        PYTHONPATH: path.join(this.pythonDir, 'Lib', 'site-packages'),
+
+        // Disable user site packages to prevent interference
+        PYTHONNOUSERSITE: '1',
+
+        // Don't write bytecode to user's system
+        PYTHONDONTWRITEBYTECODE: '0',
+
+        // Disable .pth files from other Python installations
+        PYTHONPYCACHEPREFIX: path.join(this.componentsDir, 'pycache'),
+
+        // Optimize for production
+        PYTHONOPTIMIZE: '1',
+
+        // Suppress warnings in production
+        PYTHONWARNINGS: 'ignore',
+
+        // Isolate from system Python
+        PYTHONSTARTUP: '',
+        PYTHONIOENCODING: 'utf-8',
+
+        // Keep PATH minimal (no other Python installations)
+        PATH: this.pythonDir,
+
+        // Inherit minimal environment
+        SYSTEMROOT: process.env.SYSTEMROOT,
+        TEMP: process.env.TEMP,
+        TMP: process.env.TMP
+      };
+
       const process = exec(
-        `"${this.pythonExe}" "${backendScriptPath}"`,
-        { cwd: path.dirname(backendScriptPath) }
+        `"${this.pythonExe}" -I "${backendScriptPath}"`,  // -I: isolated mode
+        {
+          cwd: path.dirname(backendScriptPath),
+          env: sandboxedEnv,
+          windowsHide: true  // Hide console window on Windows
+        }
       );
 
       process.stdout.on('data', (data) => {

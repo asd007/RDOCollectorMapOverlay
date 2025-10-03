@@ -1,13 +1,13 @@
 {
   "version": "1.0.0",
-  "note": "Backend source is bundled in the installer. Only external dependencies download at runtime.",
+  "note": "Backend source is bundled in the installer. Only external dependencies download at runtime. SHA256 hashes are fetched dynamically from GitHub API for verification.",
   "components": [
     {
       "name": "HQ Map",
       "filename": "rdr2_map_hq.png",
       "version": "1.0.0",
-      "url": "https://raw.githubusercontent.com/YOUR_USERNAME/rdo-overlay/main/data/rdr2_map_hq.png",
-      "sha256": "CALCULATE_AFTER_BUILD",
+      "url": "https://raw.githubusercontent.com/asd007/rdo-overlay/main/data/rdr2_map_hq.png",
+      "sha256": null,
       "size": 175000000,
       "required": false,
       "description": "High quality reference map (downloaded on first launch, cached in %APPDATA%)"

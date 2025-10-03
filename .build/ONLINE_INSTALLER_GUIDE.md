@@ -39,6 +39,8 @@ win:
 - Downloads Electron runtime (~65MB) during installation
 - Handles extraction and shortcuts automatically
 
+**Important:** NSIS Web installers do NOT automatically update Electron runtime. Runtime URL is hardcoded at build time. See "Electron Runtime Updates" section below.
+
 ### 2. Python Environment Manager
 
 **File:** `frontend/python-environment-manager.js`
@@ -303,6 +305,96 @@ publish:
 - Verify Python environment is complete
 - Try deleting `components/` folder and reinstalling
 
+## Security & Isolation
+
+### Python Sandboxing
+
+The Python runtime is fully sandboxed to prevent interference with the user's system:
+
+**Isolation Mechanisms:**
+- Downloaded to isolated location: `%APPDATA%/RDO-Map-Overlay/components/python/`
+- Launched with `-I` flag (isolated mode)
+- Custom environment variables block system Python:
+  ```javascript
+  PYTHONHOME: <app-python-dir>
+  PYTHONPATH: <app-python-dir>/Lib/site-packages
+  PYTHONNOUSERSITE: '1'  // Disable user site packages
+  PATH: <app-python-dir>  // No other Python installations
+  ```
+- Bytecode cached separately in app directory
+- No registry modifications
+- No PATH modifications
+- Cannot interfere with user's Python installations
+
+### SHA256 Verification
+
+**Problem:** Static `sha256: "CALCULATE_AFTER_BUILD"` in manifest is a security risk.
+
+**Solution:** Dynamic SHA256 fetching from GitHub API
+
+**Implementation:**
+```javascript
+// frontend/github-sha256-fetcher.js
+class GitHubSHA256Fetcher {
+  static async fetchSHA256(githubUrl) {
+    // 1. Parse GitHub URL (owner, repo, branch, path)
+    // 2. Get latest commit SHA for branch
+    // 3. Get tree for commit
+    // 4. Find file in tree
+    // 5. Download blob and calculate SHA256
+    // 6. Fallback: Direct download + hash calculation
+  }
+}
+```
+
+**Verification Flow:**
+1. Component downloader checks manifest
+2. If `sha256` is missing or `"CALCULATE_AFTER_BUILD"`, fetch from GitHub
+3. Download component to temp file
+4. Calculate SHA256 of downloaded file
+5. Compare with expected hash from GitHub
+6. If mismatch, throw error: "File may be corrupted or tampered with"
+7. If match, move from temp to final location
+
+**Benefits:**
+- Always verifies against actual GitHub file
+- Detects corruption and tampering
+- No hardcoded placeholder hashes
+- Works even if manifest is outdated
+
+## Electron Runtime Updates
+
+**Issue:** NSIS Web installers cache Electron runtime "almost forever", but it does get updates.
+
+**Recommendation from build-release-specialist:**
+
+### Option 1: Rely on electron-updater (Simplest)
+```javascript
+// frontend/main.js
+const { autoUpdater } = require('electron-updater');
+
+app.whenReady().then(() => {
+  autoUpdater.checkForUpdates();
+
+  autoUpdater.on('update-available', (info) => {
+    // Show dialog to user
+    // Downloads only changed files (differential updates)
+  });
+
+  autoUpdater.on('update-downloaded', () => {
+    // Prompt user to restart
+    autoUpdater.quitAndInstall();
+  });
+});
+```
+
+### Option 2: Manual Runtime Version Check (Advanced)
+- Check `process.versions.electron` against latest version
+- For major version changes, redirect to download page
+- For minor updates, use electron-updater
+
+**Current Status:** Option 1 implemented (electron-updater handles app updates, Electron runtime updates via new installer releases)
+
 ## Future Enhancements
 
 1. **Retry logic** for failed downloads
@@ -310,6 +402,7 @@ publish:
 3. **Offline installer option** (bundles dependencies)
 4. **Progress persistence** (resume failed installs)
 5. **Automatic cleanup** of old component versions
+6. **Setup progress UI** - Clear installer window showing what's downloading and why
 
 ---
 

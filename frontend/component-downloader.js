@@ -8,11 +8,12 @@ const path = require('path');
 const https = require('https');
 const { app } = require('electron');
 const crypto = require('crypto');
+const GitHubSHA256Fetcher = require('./github-sha256-fetcher');
 
 class ComponentDownloader {
   constructor() {
     this.componentsDir = path.join(app.getPath('userData'), 'components');
-    this.manifestUrl = 'https://raw.githubusercontent.com/YOUR_USERNAME/rdo-overlay/main/components-manifest.json';
+    this.manifestUrl = 'https://raw.githubusercontent.com/asd007/rdo-overlay/main/components-manifest.json';
     this.ensureDirectories();
   }
 
@@ -97,25 +98,67 @@ class ComponentDownloader {
     const tempPath = destPath + '.tmp';
 
     try {
+      // Fetch actual SHA256 from GitHub if not provided or is a placeholder
+      let expectedSHA256 = component.sha256;
+      if (!expectedSHA256 || expectedSHA256 === 'CALCULATE_AFTER_BUILD' || expectedSHA256.length !== 64) {
+        console.log(`Fetching SHA256 from GitHub for ${component.name}...`);
+
+        if (onProgress) {
+          onProgress({
+            stage: 'fetching-hash',
+            percent: 0,
+            message: 'Verifying file integrity with GitHub...'
+          });
+        }
+
+        const hashInfo = await GitHubSHA256Fetcher.fetchSHA256(component.url);
+        expectedSHA256 = hashInfo.sha256;
+        console.log(`GitHub SHA256 for ${component.name}: ${expectedSHA256}`);
+      }
+
       // Check if component already exists and is valid
       if (fs.existsSync(destPath)) {
         const hash = await this.getFileHash(destPath);
-        if (hash === component.sha256) {
+        if (hash === expectedSHA256) {
           console.log(`Component ${component.name} already up to date`);
           return destPath;
+        } else {
+          console.log(`Component ${component.name} hash mismatch, will redownload`);
         }
       }
 
       console.log(`Downloading ${component.name} from ${component.url}`);
 
       // Download to temp file
-      await this.downloadFile(component.url, tempPath, onProgress);
+      await this.downloadFile(component.url, tempPath, (progress) => {
+        if (onProgress) {
+          onProgress({
+            ...progress,
+            stage: 'downloading'
+          });
+        }
+      });
 
       // Verify hash
-      const hash = await this.getFileHash(tempPath);
-      if (hash !== component.sha256) {
-        throw new Error(`Hash mismatch for ${component.name}`);
+      if (onProgress) {
+        onProgress({
+          stage: 'verifying',
+          percent: 100,
+          message: 'Verifying download integrity...'
+        });
       }
+
+      const hash = await this.getFileHash(tempPath);
+      if (hash !== expectedSHA256) {
+        throw new Error(
+          `Hash mismatch for ${component.name}\n` +
+          `Expected: ${expectedSHA256}\n` +
+          `Got: ${hash}\n` +
+          `File may be corrupted or tampered with.`
+        );
+      }
+
+      console.log(`SHA256 verification passed for ${component.name}`);
 
       // Move to final location
       if (fs.existsSync(destPath)) {
@@ -123,7 +166,15 @@ class ComponentDownloader {
       }
       fs.renameSync(tempPath, destPath);
 
-      console.log(`Successfully downloaded ${component.name}`);
+      if (onProgress) {
+        onProgress({
+          stage: 'complete',
+          percent: 100,
+          message: 'Download complete'
+        });
+      }
+
+      console.log(`Successfully downloaded and verified ${component.name}`);
       return destPath;
 
     } catch (error) {
