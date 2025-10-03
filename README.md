@@ -70,7 +70,7 @@ The overlay uses computer vision (AKAZE features + cascade matching) to automati
 
 ### How This Tool Works
 
-This overlay is a **passive, screen-based tool** that works similarly to having a second monitor with a map open:
+This overlay is a **passive, screen-based tool** that enriches your game screen with collectible information:
 
 **What it DOES:**
 - ✅ Captures your game window using Windows Graphics Capture API (same as OBS, Discord, etc.)
@@ -94,7 +94,7 @@ This overlay is a **passive, screen-based tool** that works similarly to having 
 **Our position:**
 - This tool provides information that is already publicly available (collectible locations from community resources)
 - It does not automate gameplay, modify game behavior, or provide information not visible to all players
-- Similar to using a web browser or second monitor with a community map open
+- Functions like looking at a community map - just overlaid on your screen instead of in a separate window
 
 However, **we cannot guarantee that Rockstar will not take action** against accounts using this tool. Use your own judgment and discretion.
 
