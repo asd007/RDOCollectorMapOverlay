@@ -110,13 +110,19 @@ This software is provided "as is" without warranty of any kind. See the [LICENSE
 
 1. Download `RDO-Map-Overlay-Setup.exe` from [Releases](https://github.com/asd007/RDOCollectorMapOverlay/releases)
 2. Run the installer
-3. Launch "RDO Map Overlay" from your desktop or Start Menu
+3. **Windows SmartScreen Warning** (unsigned builds):
+   - If you see "Windows protected your PC", click **More info**
+   - Click **Run anyway**
+   - This is normal for unsigned applications
+4. Launch "RDO Map Overlay" from your desktop or Start Menu
 
 **Requirements:**
 - Windows 10/11 (64-bit)
 - Red Dead Online installed and running
 - 4GB RAM minimum
 - No Python or development tools needed
+
+**Note:** The installer is not code-signed yet. Windows will show a security warning, which is expected. The application is safe - you can verify by checking the source code or building from source.
 
 ### Manual Installation (Advanced)
 
@@ -373,6 +379,43 @@ This will:
 node .build/build-backend.js
 build/backend/rdo-overlay-backend.exe  # Should start server
 ```
+
+### Code Signing (Optional)
+
+**Current Status:** Builds are unsigned (`"sign": null` in package.json)
+
+**To enable code signing for production releases:**
+
+1. **Purchase Certificate:**
+   - Standard Code Signing: ~$100-400/year
+   - EV (Extended Validation): ~$300-600/year (recommended - no SmartScreen warnings)
+   - Providers: Sectigo, DigiCert, GlobalSign
+
+2. **Configure in `frontend/package.json`:**
+   ```json
+   "win": {
+     "certificateFile": "./cert.pfx",
+     "certificatePassword": "process.env.CERTIFICATE_PASSWORD",
+     "sign": null  // Remove this line
+   }
+   ```
+
+3. **Set environment variable:**
+   ```shell
+   set CERTIFICATE_PASSWORD=your_password
+   node .build/build-release.js
+   ```
+
+4. **For CI/CD (GitHub Actions):**
+   - Store certificate in GitHub Secrets
+   - Store password in GitHub Secrets
+   - Decode base64 certificate in workflow
+   - Set CERTIFICATE_PASSWORD env var
+
+**Without code signing:**
+- Installer works perfectly but shows "Unknown Publisher"
+- Windows SmartScreen may warn users (they can click "Run anyway")
+- Common for indie/open source projects
 
 ### Coding Standards
 
