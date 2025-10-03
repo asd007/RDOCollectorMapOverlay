@@ -8,3 +8,6 @@ requests==2.31.0
 windows-capture==1.5.0
 pywin32==306
 Pillow==10.1.0
+
+# Build dependencies
+pyinstaller==6.3.0
