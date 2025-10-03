@@ -13,7 +13,6 @@ sys.path.insert(0, str(Path(__file__).parent))
 from config import SERVER, MAP_DIMENSIONS, SCREENSHOT
 from core import CoordinateTransform, MapLoader, CollectiblesLoader
 from core.continuous_capture import ContinuousCaptureService
-from core.image_preprocessing import preprocess_for_matching
 from core.port_manager import find_available_port, write_port_file
 from matching.cascade_scale_matcher import CascadeScaleMatcher, ScaleConfig
 from matching import SimpleMatcher

@@ -37,7 +37,8 @@ venv.bak/
 
 # PyInstaller
 *.manifest
-*.spec
+# *.spec - Keep app.spec tracked for reproducible builds
+!app.spec
 
 # Unit test / coverage reports
 htmlcov/

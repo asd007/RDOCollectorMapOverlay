@@ -8,7 +8,6 @@ import cv2
 import time
 from config import SERVER, SCREENSHOT
 from api.state import OverlayState
-from core.image_preprocessing import preprocess_for_matching
 
 # Check for screenshot capability
 try:
