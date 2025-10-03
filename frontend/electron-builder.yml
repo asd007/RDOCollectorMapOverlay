@@ -1,0 +1,77 @@
+# electron-builder configuration for online installer
+# This replaces the build section in package.json
+
+appId: com.rdo.mapoverlay
+productName: RDO Map Overlay
+
+directories:
+  output: ../dist
+  buildResources: build-resources
+
+# Code signing (disabled for now)
+win:
+  sign: false
+  verifyUpdateCodeSignature: false
+  forceCodeSigning: false
+  icon: icon.ico
+
+# Files to include in the app
+files:
+  - "**/*"
+  - "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}"
+  - "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}"
+  - "!**/node_modules/*.d.ts"
+  - "!**/node_modules/.bin"
+  - "!build-resources"
+
+# Don't include backend in asar - we'll download it separately
+extraResources: []
+
+# Compression for smaller packages
+compression: maximum
+asar: true
+asarUnpack:
+  - "**/*.node"
+
+# Publishing configuration for auto-updater
+publish:
+  - provider: github
+    owner: your-github-username  # Replace with your GitHub username
+    repo: rdo-overlay            # Replace with your repo name
+    releaseType: release
+
+# Two distribution targets:
+win:
+  target:
+    # 1. Web installer (2-3MB) - for new users
+    - target: nsis-web
+      arch: [x64]
+    # 2. Full installer (for fallback/offline)
+    - target: nsis
+      arch: [x64]
+
+# NSIS Web Installer Configuration
+nsisWeb:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: RDO Map Overlay
+
+  # Download options
+  artifactName: ${productName}-Setup-Web.${ext}
+  differentialPackage: true  # Enable differential updates
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: RDO Map Overlay
+  artifactName: ${productName}-Setup-Full.${ext}
+  differentialPackage: true
+
+  # Custom installer script for downloading backend
+  include: build-resources/installer.nsh
