@@ -1,25 +1,16 @@
 {
   "version": "1.0.0",
+  "note": "Backend source is bundled in the installer. Only external dependencies download at runtime.",
   "components": [
-    {
-      "name": "Python Backend",
-      "filename": "rdo-overlay-backend.exe",
-      "version": "1.0.0",
-      "url": "https://github.com/YOUR_USERNAME/rdo-overlay/releases/download/backend-v1.0.0/rdo-overlay-backend.exe",
-      "sha256": "CALCULATE_AFTER_BUILD",
-      "size": 60000000,
-      "required": true,
-      "description": "Python backend with OpenCV and Flask"
-    },
     {
       "name": "HQ Map",
       "filename": "rdr2_map_hq.png",
       "version": "1.0.0",
-      "url": "https://github.com/YOUR_USERNAME/rdo-overlay/releases/download/assets-v1.0.0/rdr2_map_hq.png",
+      "url": "https://raw.githubusercontent.com/YOUR_USERNAME/rdo-overlay/main/data/rdr2_map_hq.png",
       "sha256": "CALCULATE_AFTER_BUILD",
       "size": 175000000,
       "required": false,
-      "description": "High quality reference map (downloaded on first use)"
+      "description": "High quality reference map (downloaded on first launch, cached in %APPDATA%)"
     }
   ],
   "minimumAppVersion": "1.0.0"

@@ -24,8 +24,11 @@ files:
   - "!**/node_modules/.bin"
   - "!build-resources"
 
-# Don't include backend in asar - we'll download it separately
-extraResources: []
+# Include backend source in the installer
+extraResources:
+  - from: "../build/backend-source"
+    to: "backend"
+    filter: ["**/*"]
 
 # Compression for smaller packages
 compression: maximum
