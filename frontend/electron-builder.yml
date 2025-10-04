@@ -2,31 +2,21 @@
 # This replaces the build section in package.json
 
 appId: com.rdo.mapoverlay
-productName: RDO Map Overlay
+productName: RDO-Map-Overlay
 
 directories:
-  output: ../dist
+  output: ../build/installer
   buildResources: build-resources
 
-# Code signing (disabled for now)
-win:
-  sign: false
-  verifyUpdateCodeSignature: false
-  forceCodeSigning: false
-  icon: icon.ico
-
-# Files to include in the app
 files:
   - "**/*"
-  - "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}"
-  - "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}"
-  - "!**/node_modules/*.d.ts"
-  - "!**/node_modules/.bin"
+  - "!node_modules/**/*"
   - "!build-resources"
+  - "package.json"
+  - "package-lock.json"
 
-# Include backend source in the installer
 extraResources:
-  - from: "../build/backend-source"
+  - from: "../.build/backend-source"
     to: "backend"
     filter: ["**/*"]
 
@@ -39,48 +29,29 @@ asarUnpack:
 # Publishing configuration for auto-updater
 publish:
   - provider: github
-    owner: your-github-username  # Replace with your GitHub username
-    repo: rdo-overlay            # Replace with your repo name
+    owner: asd007
+    repo: rdo-overlay
     releaseType: release
 
-# Two distribution targets:
+# Windows build configuration (no signing)
 win:
+  icon: icon.ico
   target:
-    # 1. Web installer (2-3MB) - for new users
-    - target: nsis-web
-      arch: [x64]
-    # 2. Full installer (for fallback/offline)
     - target: nsis
       arch: [x64]
 
-# NSIS Web Installer Configuration
-nsisWeb:
-  oneClick: false
-  perMachine: false
-  allowToChangeInstallationDirectory: true
-  createDesktopShortcut: true
-  createStartMenuShortcut: true
-  shortcutName: RDO Map Overlay
-
-  # EULA
-  license: ../EULA.txt
-
-  # Download options
-  artifactName: ${productName}-Setup-Web.${ext}
-  differentialPackage: true  # Enable differential updates
-
+# NSIS Installer Configuration
 nsis:
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true
+  allowElevation: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: RDO Map Overlay
-  artifactName: ${productName}-Setup-Full.${ext}
-  differentialPackage: true
-
-  # EULA
+  shortcutName: RDO-Map-Overlay
   license: ../EULA.txt
-
-  # Custom installer script for downloading backend
-  include: build-resources/installer.nsh
+  artifactName: ${productName}-Setup.${ext}
+  unicode: true
+  deleteAppDataOnUninstall: false
+  # Custom GUID for consistent uninstaller
+  guid: "a7c4d8e9-1234-5678-9abc-def012345678"

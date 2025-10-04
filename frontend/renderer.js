@@ -118,15 +118,15 @@ function createTooltip() {
   tooltip.id = 'collectible-tooltip';
   tooltip.style.cssText = `
     position: absolute;
-    background: rgba(0, 0, 0, 0.95);
+    background: rgba(0, 0, 0, 0.98);
     backdrop-filter: blur(10px);
     border: 2px solid rgba(217, 119, 6, 0.7);
     border-radius: 8px;
-    padding: 18px;
+    padding: 10px 12px;
     color: white;
-    font-size: 18px;
+    font-size: 13px;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    max-width: 450px;
+    max-width: 320px;
     z-index: 10000;
     pointer-events: auto;
     display: none;
@@ -148,28 +148,34 @@ function showTooltip(collectible) {
   const helpText = collectible.help || '';
   const videoLink = collectible.video || '';
 
+  // Optimized compact layout with video button (side determined after positioning)
   let tooltipHTML = `
-    <div style="font-weight: bold; color: #fbbf24; margin-bottom: 9px; font-size: 20px;">${name}</div>
-    <div style="font-size: 15px; color: #9ca3af; margin-bottom: 6px;">Type: ${type}</div>
+    <div class="tooltip-content" style="position: relative; padding-right: ${videoLink ? '48px' : '0'};">
+      <div style="font-weight: bold; color: #fbbf24; margin-bottom: 4px; font-size: 16px; line-height: 1.2;">${name}</div>
+      <div style="font-size: 12px; color: #9ca3af; margin-bottom: ${helpText ? '4px' : '6px'};">Type: ${type}</div>
   `;
 
   if (helpText) {
-    tooltipHTML += `<div style="margin-bottom: 9px; font-size: 16px; line-height: 1.4;">${helpText}</div>`;
+    tooltipHTML += `<div style="margin-bottom: 6px; font-size: 13px; line-height: 1.3; color: #d1d5db;">${helpText}</div>`;
   }
 
+  // Video button (will be positioned dynamically based on tooltip placement)
   if (videoLink) {
-    tooltipHTML += `<div style="margin-bottom: 12px; display: flex; justify-content: center;">
-      <div class="tooltip-video-link" data-video-url="${videoLink}" data-collectible-name="${name.replace(/"/g, '&quot;')}" style="width: 64px; height: 64px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 12px rgba(0,0,0,0.4); user-select: none;">
-        <span style="font-size: 32px; margin-left: 4px;">▶</span>
-      </div>
-    </div>`;
+    tooltipHTML += `
+      <div class="tooltip-video-link" data-video-url="${videoLink}" data-collectible-name="${name.replace(/"/g, '&quot;')}"
+           style="position: absolute; top: 0; right: 0; width: 40px; height: 40px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 8px rgba(0,0,0,0.4); user-select: none; transition: transform 0.1s;">
+        <span style="font-size: 20px; margin-left: 2px;">▶</span>
+      </div>`;
   }
 
   // Add collection status
   const isCollected = collectedItems.has(getCollectibleId(collectible));
-  tooltipHTML += `<div style="font-size: 15px; color: ${isCollected ? '#22c55e' : '#ef4444'}; margin-top: 6px;">
-    ${isCollected ? '✓ Collected' : '⚫ Not Collected'}
-  </div>`;
+  tooltipHTML += `
+      <div style="font-size: 13px; color: ${isCollected ? '#22c55e' : '#ef4444'}; margin-top: 4px; font-weight: 500;">
+        ${isCollected ? '✓ Collected' : '⚫ Not Collected'}
+      </div>
+    </div>
+  `;
 
   tooltip.innerHTML = tooltipHTML;
 
@@ -189,6 +195,30 @@ function showTooltip(collectible) {
   // Position correctly
   tooltip.style.left = adjustedPos.x + 'px';
   tooltip.style.top = adjustedPos.y + 'px';
+
+  // Reposition video button based on which side the cursor/collectible is on
+  if (videoLink) {
+    const videoButton = tooltip.querySelector('.tooltip-video-link');
+    const tooltipContent = tooltip.querySelector('.tooltip-content');
+
+    if (videoButton && tooltipContent) {
+      // If left corners selected, cursor is on left → button on left
+      // If right corners selected, cursor is on right → button on right
+      const isLeftSide = adjustedPos.corner.includes('left');
+
+      if (isLeftSide) {
+        videoButton.style.left = '0';
+        videoButton.style.right = 'auto';
+        tooltipContent.style.paddingLeft = '48px';
+        tooltipContent.style.paddingRight = '0';
+      } else {
+        videoButton.style.left = 'auto';
+        videoButton.style.right = '0';
+        tooltipContent.style.paddingLeft = '0';
+        tooltipContent.style.paddingRight = '48px';
+      }
+    }
+  }
 
   // Right-click handled by backend click observer + hit-testing
   // (no need for oncontextmenu handler)
@@ -720,7 +750,7 @@ function connectWebSocket() {
       if (overlayVisible) {
         canvas.style.display = 'block';
         statusBar.classList.add('visible');
-        hotkeys.classList.add('visible');
+        // hotkeys.classList.add('visible'); // Disabled per user request
       } else {
         canvas.style.display = 'none';
       }
@@ -735,7 +765,7 @@ function connectWebSocket() {
       ipcRenderer.send('set-overlay-visibility', false);
       canvas.style.display = 'none';
       statusBar.classList.remove('visible');
-      hotkeys.classList.remove('visible');
+      // hotkeys.classList.remove('visible'); // Disabled per user request
       hideTooltip();
       closeVideoPlayer();
     }
@@ -951,7 +981,7 @@ function calculateTooltipPosition(collectibleX, collectibleY, tooltipWidth, tool
   console.log(`[Tooltip] Corner verification: ${matchingCorner} at (${collectibleX}, ${collectibleY})`);
   console.log(`[Tooltip] Tooltip bounds: x=${selected.x}, y=${selected.y}, width=${tooltipWidth}, height=${tooltipHeight}`);
 
-  return { x: selected.x, y: selected.y };
+  return { x: selected.x, y: selected.y, corner: selected.corner };
 }
 
 function startCursorPolling() {
@@ -995,9 +1025,9 @@ async function initialize() {
   console.log('[Initialize] Canvas initial display value:', canvas.style.display);
 
   // Show status UI (but not canvas yet)
-  console.log('[Initialize] Showing status bar and hotkeys');
+  console.log('[Initialize] Showing status bar');
   statusBar.classList.add('visible');
-  hotkeys.classList.add('visible');
+  // hotkeys.classList.add('visible'); // Disabled per user request
 
   // Connect to WebSocket (will immediately receive RDR2 state on connect)
   console.log('[Initialize] Connecting to WebSocket...');
@@ -1102,7 +1132,7 @@ function alignmentComplete(success, result = null) {
     console.log('Alignment successful - rendering collectibles...');
     updateStatus(`Tracking ${currentCollectibles.length} items`, 'active');
     statusBar.classList.add('visible');
-    hotkeys.classList.add('visible');
+    // hotkeys.classList.add('visible'); // Disabled per user request
     overlayVisible = true;
     isTracking = true;
     
@@ -1122,7 +1152,7 @@ function alignmentComplete(success, result = null) {
     console.error('Alignment failed');
     updateStatus('Alignment failed - Press F9 to retry', 'inactive');
     statusBar.classList.add('visible');
-    hotkeys.classList.add('visible');
+    // hotkeys.classList.add('visible'); // Disabled per user request
     currentCollectibles = [];
     drawOverlay();
   }
@@ -1232,7 +1262,7 @@ ipcRenderer.on('show-overlay', () => {
   if (isRdr2Active) {
     canvas.style.display = 'block';
     statusBar.classList.add('visible');
-    hotkeys.classList.add('visible');
+    // hotkeys.classList.add('visible'); // Disabled per user request
   }
 });
 
@@ -1241,7 +1271,7 @@ ipcRenderer.on('hide-overlay', () => {
   canvas.style.display = 'none';
   drawOverlay();
   statusBar.classList.remove('visible');
-  hotkeys.classList.remove('visible');
+  // hotkeys.classList.remove('visible'); // Disabled per user request
 });
 
 ipcRenderer.on('set-opacity', (event, opacity) => {

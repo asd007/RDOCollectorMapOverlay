@@ -6,7 +6,7 @@
 
 **A gap-closer between your game and the community map.** Collectible tracking overlay for Red Dead Online that eliminates the need to alt-tab to Joan Ropke's website.
 
-**Current Status:** Functional and usable, especially valuable for single-screen setups. Performance and accuracy are actively being improved toward the vision of pixel-perfect, real-time tracking.
+**Current Status:** Functional and usable, especially valuable for single-screen setups. Performance and accuracy need improvement and may vary from setup to setup.
 
 ## Features
 
@@ -17,8 +17,6 @@
 - **Single-Screen Friendly**: No need to alt-tab or use second monitor
 - **Transparent Overlay**: Non-intrusive display over your game
 
-**Performance:** ~200ms matching time, 5fps tracking. Good enough to eliminate website switching, with ongoing improvements toward real-time precision.
-
 ## What You Get
 
 ### Visual Overlay System
@@ -26,14 +24,28 @@
 The overlay displays collectible markers directly on your game screen:
 
 - **Collectible Icons**: Each collectible type has a distinctive icon (flowers, coins, cards, etc.)
-- **Real-Time Updates**: Markers appear as you move around the map (5 fps tracking)
+- **Real-Time Updates**: Markers appear as you pan and zoom across the map
 - **Interactive Markers**: Hover over markers to see details (name, tool required, location)
-- **Smart Filtering**: Only shows collectibles visible in your current viewport
+- **Viewport Filtering**: Only shows collectibles visible in your current viewport
 - **Right-Click Menu**: Mark collectibles as collected with a single click
+
+![Overlay Example](docs/images/overlay-example.png)
+*Example: The RDO in-game map showing collectible markers with distinctive emoji icons:*
+- 🏹 Arrowheads
+- 💰 Coins
+- 👑 Heirlooms
+- 🍾 Bottles
+- 🥚 Eggs
+- 🌸 Flowers
+- 🃏 Tarot Cards
+- 🦴 Fossils
+- 💎 Jewelry
+- 🏆 Cups
+- 🪄 Wands
 
 ### Status Bar
 
-Persistent status bar at the top of the screen shows:
+Persistent status bar at the bottom of the screen shows:
 - Connection status (Active/Inactive)
 - Current tracking state (Tracking/Not Tracking)
 - FPS counter
@@ -62,9 +74,9 @@ The overlay uses computer vision (AKAZE features + cascade matching) to automati
 **Why use this?**
 - **Single-screen users:** No more alt-tabbing to Joan Ropke's website
 - **Dual-screen users:** Frees up your second monitor for other uses
-- **All users:** Faster workflow than switching between game and browser
+- **All users:** Reduces need to switch between game and browser
 
-**Current limitations:** Position accuracy and tracking speed are functional but not yet perfect. The tool is under active development toward real-time, pixel-perfect tracking.
+**Current limitations:** Position accuracy and tracking performance need improvement and may vary from setup to setup.
 
 ## Safety & Legal
 
@@ -122,6 +134,10 @@ This software is provided "as is" without warranty of any kind. See the [LICENSE
 - 4GB RAM minimum
 - No Python or development tools needed
 
+**Installation Time:**
+- **First-time setup**: 5-10 minutes (downloads ~205MB: Electron runtime, Node.js, Python dependencies)
+- **Updates**: Less than 1 minute (skips re-downloading existing components)
+
 **Note:** The installer is not code-signed yet. Windows will show a security warning, which is expected. The application is safe - you can verify by checking the source code or building from source.
 
 ### Manual Installation (Advanced)
@@ -140,7 +156,7 @@ See [Contributing](#contributing) section for development setup.
 
 ### Daily Use
 
-- **Automatic Tracking**: Once synced, the overlay automatically tracks your position at 5fps
+- **Automatic Tracking**: Once synced, the overlay automatically tracks your position
 - **Mark Collected**: Right-click collectibles to remove them from your view
 - **Refresh Data**: Press **F6** to update to the latest daily cycle
 - **Toggle Visibility**: Press **F8** if you need to hide the overlay temporarily
@@ -150,7 +166,6 @@ See [Contributing](#contributing) section for development setup.
 - **Open World View**: F9 sync works best with full map open (not zoomed in buildings/interiors)
 - **Clear Minimap**: Make sure no UI elements are blocking your minimap
 - **Re-sync When Needed**: Position may drift over time - press F9 to resync
-- **Be Patient**: Initial sync can take a few seconds (~200ms per attempt)
 - **Expect Some Drift**: Markers may not be pixel-perfect but will get you close enough to find collectibles
 - **Check Connection**: Green dot in status bar = active tracking
 
@@ -210,7 +225,6 @@ See [Contributing](#contributing) section for development setup.
 1. Close other applications to free up resources
 2. Check that only one instance of the overlay is running
 3. Reduce game graphics settings if needed
-4. The overlay uses ~500MB RAM and ~5-10% CPU normally
 
 ### Overlay Not Visible Over Game
 
@@ -346,6 +360,111 @@ npm run dev  # Development mode with DevTools
 
 The backend will start on `http://127.0.0.1:5000` and the frontend will connect automatically.
 
+### Local Debugging
+
+**Backend Debugging:**
+
+The backend outputs logs to stdout. To see detailed logs:
+
+```shell
+# Run with debug logging
+python app.py
+
+# You'll see logs like:
+# [2025-10-04 12:34:56] INFO: Server starting on port 5000
+# [2025-10-04 12:34:57] INFO: Collectibles loaded: 423 items
+# [2025-10-04 12:35:00] DEBUG: Screenshot captured (1920x864)
+# [2025-10-04 12:35:00] DEBUG: Matching took 156ms
+```
+
+**Frontend Debugging:**
+
+Development mode automatically opens DevTools:
+
+```shell
+cd frontend
+npm run dev  # DevTools opens automatically
+```
+
+In DevTools Console, you'll see:
+- Backend connection status
+- IPC message logs
+- Collectible position calculations
+- WebSocket events
+
+**Common Debug Tasks:**
+
+*Note: Development mode uses port 5000. Production uses dynamic ports (5000-5099) written to a port file.*
+
+```shell
+# Check if backend is responding (dev mode)
+curl http://localhost:5000/status
+
+# View profiling statistics (dev mode)
+curl http://localhost:5000/profiling-stats
+
+# Test collectibles endpoint (dev mode)
+curl http://localhost:5000/collectibles
+
+# Monitor port file (production mode - shows dynamic port)
+# Windows PowerShell:
+Get-Content $env:TEMP\rdo_overlay_port.json
+
+# Check backend logs in real-time
+python app.py | tee backend.log
+```
+
+**Debugging Installation Issues:**
+
+If the installed application fails to start, check logs:
+
+```shell
+# Installation log (created during setup)
+type "C:\Program Files\RDO-Map-Overlay\install.log"
+
+# Check if dependencies were installed
+dir "C:\Program Files\RDO-Map-Overlay\runtime"
+dir "C:\Program Files\RDO-Map-Overlay\electron"
+
+# Test Python environment
+"C:\Program Files\RDO-Map-Overlay\runtime\python\python.exe" --version
+
+# Test Node environment
+"C:\Program Files\RDO-Map-Overlay\runtime\node\node.exe" --version
+```
+
+**Network Debugging:**
+
+```shell
+# Check if port is in use (dev mode: 5000, production: check port file)
+netstat -ano | findstr :5000
+
+# For production, find the actual port first:
+# PowerShell:
+$port = (Get-Content $env:TEMP\rdo_overlay_port.json | ConvertFrom-Json).port
+netstat -ano | findstr :$port
+
+# Kill process on port (if stuck)
+# Get PID from netstat, then:
+taskkill /PID <pid> /F
+```
+
+**Breakpoint Debugging:**
+
+For Python backend:
+```python
+# Add to any file:
+import pdb; pdb.set_trace()
+
+# Run backend, execution will pause at breakpoint
+# Commands: n (next), s (step), c (continue), p (print variable)
+```
+
+For Electron frontend:
+- Open DevTools (automatic in dev mode)
+- Set breakpoints in Sources tab
+- Use `debugger;` statement in code
+
 ### Running Tests
 
 **Synthetic Tests:**
@@ -359,6 +478,26 @@ Tests matching accuracy using programmatically generated viewports.
 python tests/run_real_tests.py
 ```
 Tests against 9 real gameplay screenshots with ground truth positions.
+
+**Experimental Tests:**
+
+Research and prototyping code lives in `tests/experimental/`:
+
+```shell
+# Example: Compare spatial distribution approaches
+python tests/experimental/compare_spatial_distribution.py
+
+# Experiments use additional dependencies (matplotlib, etc.)
+# Install with: pip install matplotlib seaborn
+```
+
+These tests are **not** part of the automated suite. They're for:
+- Algorithm experiments (testing alternative approaches)
+- Performance research (benchmarking configurations)
+- Visualization tools (debug heatmaps, feature plots)
+- One-time analyses (investigations)
+
+See **[tests/experimental/README.md](tests/experimental/README.md)** for guidelines on what goes here vs. main tests.
 
 **CI Tests:**
 Tests run automatically on GitHub Actions for every pull request.
@@ -378,6 +517,73 @@ This will:
 ```shell
 node .build/build-backend.js
 build/backend/rdo-overlay-backend.exe  # Should start server
+```
+
+### Versioning with GitVersion
+
+This project uses **GitVersion** for automatic semantic versioning and release automation.
+
+**How it works:**
+- Version numbers are automatically calculated from your git history
+- Merging to `main` triggers automatic GitHub releases with installers
+- No manual version bumping needed - GitVersion handles it all
+
+**Version Numbering:**
+
+| Branch Type | Version Format | Increment | Example |
+|-------------|---------------|-----------|---------|
+| `main` | `X.Y.0` | Minor | `1.1.0`, `1.2.0` |
+| `release/*` | `X.Y.Z-rc.N` | Patch | `1.1.1-rc.1` |
+| `feature/*` | `X.Y.0-alpha.branch.N` | Minor | `1.2.0-alpha.new-ui.1` |
+| `hotfix/*` | `X.Y.Z-beta.N` | Patch | `1.1.1-beta.1` |
+
+**Configuration:**
+See `GitVersion.yml` in the project root for branch-specific rules.
+
+**Workflow:**
+
+```shell
+# Feature development
+git checkout -b feature/improved-matching
+# ... make changes, commit ...
+git push origin feature/improved-matching
+# Opens PR → builds version like 1.2.0-alpha.improved-matching.1
+
+# Merge to main
+# → Automatically creates release 1.2.0
+# → Builds installer and uploads to GitHub Releases
+# → Tags commit as v1.2.0
+```
+
+**Testing Versioning Locally:**
+
+```shell
+# Install GitVersion CLI
+dotnet tool install --global GitVersion.Tool
+
+# See what version will be generated
+dotnet gitversion
+
+# Test build with calculated version
+cd .build/installer
+powershell -ExecutionPolicy Bypass -File build-web-installer.ps1
+# Installer will be: RDO-Map-Overlay-WebSetup-X.Y.Z.exe
+```
+
+**CI/CD Integration:**
+The `.github/workflows/build-installer.yml` workflow:
+1. Checks out code with full git history
+2. Runs GitVersion to calculate version
+3. Updates `frontend/package.json` with calculated version
+4. Builds installer with version in filename and title
+5. Creates GitHub release when merged to `main`
+
+**Manual Versioning:**
+If you need to set a specific version, create a git tag:
+```shell
+git tag v2.0.0
+git push --tags
+# Next build will use 2.0.0
 ```
 
 ### Code Signing (Optional)

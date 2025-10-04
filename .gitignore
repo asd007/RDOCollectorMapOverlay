@@ -85,9 +85,11 @@ pids
 
 # Compiled output
 dist/
-build/
 out/
 release/
+
+# Build artifacts and temporary build files (build/ is for artifacts only, gitignored entirely)
+build/
 
 # Electron specific
 *.asar
