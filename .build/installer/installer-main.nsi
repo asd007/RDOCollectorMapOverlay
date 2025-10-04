@@ -426,13 +426,23 @@ Section "Core Components" SEC_CORE
     ${EndIf}
   no_old_modules:
 
+  ; Copy package.json to prefix directory (npm install --prefix needs it there)
+  DetailPrint "Preparing shared modules directory..."
+  CreateDirectory "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules"
+  CopyFiles "$INSTDIR\app\package.json" "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules\package.json"
+
+  ; Copy package-lock.json if it exists
+  IfFileExists "$INSTDIR\app\package-lock.json" 0 no_lock_file
+    CopyFiles "$INSTDIR\app\package-lock.json" "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules\package-lock.json"
+  no_lock_file:
+
   ; Install using --prefix to shared location
   DetailPrint "Running npm install with custom prefix..."
   Push "npm install --prefix $CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules"
   Call LogWrite
 
-  SetOutPath "$INSTDIR\app"
-  nsExec::ExecToLog '"$CommonAppDataDir\RDO-Map-Overlay\runtime\node\npm.cmd" install --production --no-fund --no-audit --prefix="$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules"'
+  SetOutPath "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules"
+  nsExec::ExecToLog '"$CommonAppDataDir\RDO-Map-Overlay\runtime\node\npm.cmd" install --production --no-fund --no-audit'
   Pop $0
   DetailPrint "npm install exit code: $0"
   Push "npm install exit code: $0"
@@ -481,12 +491,12 @@ Section "Core Components" SEC_CORE
   junction_continue:
   ${EndIf}
 
-  ; Install @electron/rebuild for native module rebuilding
+  ; Install @electron/rebuild for native module rebuilding (in same shared location)
   DetailPrint "Installing @electron/rebuild..."
   Push "Installing @electron/rebuild"
   Call LogWrite
 
-  nsExec::ExecToLog '"$CommonAppDataDir\RDO-Map-Overlay\runtime\node\npm.cmd" install --save-dev --prefix="$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules" @electron/rebuild electron@27.0.0'
+  nsExec::ExecToLog '"$CommonAppDataDir\RDO-Map-Overlay\runtime\node\npm.cmd" install --save-dev @electron/rebuild electron@27.0.0'
   Pop $0
 
   ${If} $0 == 0
@@ -495,7 +505,8 @@ Section "Core Components" SEC_CORE
     Call LogWrite
 
     ; Use the installed electron-rebuild (in shared location)
-    nsExec::ExecToLog '"$CommonAppDataDir\RDO-Map-Overlay\runtime\node\node.exe" "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules\node_modules\@electron\rebuild\lib\cli.js" --force --module-dir="$INSTDIR\app"'
+    ; module-dir points to shared location where package.json and node_modules are
+    nsExec::ExecToLog '"$CommonAppDataDir\RDO-Map-Overlay\runtime\node\node.exe" "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules\node_modules\@electron\rebuild\lib\cli.js" --force --module-dir="$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules"'
     Pop $0
 
     ${If} $0 == 0
