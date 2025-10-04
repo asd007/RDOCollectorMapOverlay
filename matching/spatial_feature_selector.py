@@ -121,48 +121,6 @@ class SpatialFeatureSelector:
 
         return selected_kps, selected_desc
 
-    def visualize_distribution(self, keypoints: List, map_shape: Tuple[int, int],
-                               output_path: str = None):
-        """
-        Visualize keypoint distribution on grid.
-
-        Args:
-            keypoints: Keypoints to visualize
-            map_shape: (height, width) of map
-            output_path: Optional path to save visualization
-        """
-        import matplotlib.pyplot as plt
-
-        h, w = map_shape
-        grid_h = (h + self.grid_size - 1) // self.grid_size
-        grid_w = (w + self.grid_size - 1) // self.grid_size
-
-        # Count keypoints per cell
-        density = np.zeros((grid_h, grid_w))
-
-        for kp in keypoints:
-            x, y = kp.pt
-            grid_x = min(int(x / self.grid_size), grid_w - 1)
-            grid_y = min(int(y / self.grid_size), grid_h - 1)
-            density[grid_y, grid_x] += 1
-
-        # Visualize
-        fig, ax = plt.subplots(1, 1, figsize=(15, 12))
-        im = ax.imshow(density, cmap='hot', interpolation='nearest')
-        ax.set_title(f'Keypoint Density After Spatial Selection\\n'
-                    f'{len(keypoints)} features, Grid: {grid_h}x{grid_w} ({self.grid_size}px cells)')
-        ax.set_xlabel('Grid X')
-        ax.set_ylabel('Grid Y')
-        plt.colorbar(im, ax=ax, label='Keypoint Count')
-
-        if output_path:
-            plt.savefig(output_path, dpi=150, bbox_inches='tight')
-            print(f"Saved distribution visualization to: {output_path}")
-        else:
-            plt.show()
-
-        plt.close()
-
 
 class AdaptiveGridSelector(SpatialFeatureSelector):
     """

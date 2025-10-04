@@ -4,8 +4,6 @@ const axios = require('axios');
 const { spawn } = require('child_process');
 const fs = require('fs');
 const os = require('os');
-const PythonEnvironmentManager = require('./python-environment-manager');
-const NodeEnvironmentManager = require('./node-environment-manager');
 
 // Ensure single instance
 const gotLock = app.requestSingleInstanceLock();
@@ -15,14 +13,17 @@ if (!gotLock) {
 }
 
 let mainWindow;
-let setupWindow;
 let disclaimerWindow;
 let backendProcess = null;
-let backendPort = null;
+let backendPort = 5000; // Backend always runs on port 5000
 let isOverlayVisible = true;
 let currentOpacity = 0.7;
 const isDev = process.argv.includes('--dev');
-let pythonEnvManager = null;
+
+// Installer paths (production mode)
+const PROGRAMDATA = process.env.PROGRAMDATA || 'C:\\ProgramData';
+const RUNTIME_DIR = path.join(PROGRAMDATA, 'RDO-Map-Overlay', 'runtime');
+const PYTHON_PATH = path.join(RUNTIME_DIR, 'python', 'python.exe');
 
 // Disable GPU and hardware acceleration to prevent GPU process crashes
 app.disableHardwareAcceleration();
@@ -35,92 +36,78 @@ app.commandLine.appendSwitch('--disable-software-rasterizer');
 app.commandLine.appendSwitch('--no-sandbox');
 
 // Backend management
-function getPortFilePath() {
-  return path.join(os.tmpdir(), 'rdo_overlay_port.json');
-}
-
 async function startBackend() {
   if (isDev) {
-    console.log('Development mode: Expecting backend to run separately');
-    // In dev mode, assume backend is at localhost:5000
+    console.log('[Backend] Development mode: Expecting backend to run separately');
     backendPort = 5000;
     return true;
   }
 
-  // Production: backend is launched by launcher.bat before Electron starts
-  // Just wait for the port file and connect
-  console.log('Production mode: Waiting for backend to be ready...');
-
-  const portFile = getPortFilePath();
-
-  // Wait for backend to write port file
-  for (let i = 0; i < 30; i++) {
-    await new Promise(r => setTimeout(r, 1000));
-
-    if (fs.existsSync(portFile)) {
-      try {
-        const data = JSON.parse(fs.readFileSync(portFile, 'utf8'));
-        backendPort = data.port;
-
-        // Verify backend is responding
-        try {
-          await axios.get(`http://127.0.0.1:${backendPort}/status`, { timeout: 2000 });
-          console.log(`Backend ready on port ${backendPort}`);
-          return true;
-        } catch (e) {
-          // Port file exists but backend not responding yet, continue waiting
-        }
-      } catch (e) {
-        console.error('Failed to read port file:', e);
-      }
-    }
+  // Check if backend is already running on default port
+  console.log('[Backend] Checking for existing backend on port 5000...');
+  try {
+    await axios.get(`http://127.0.0.1:5000/status`, { timeout: 1000 });
+    console.log('[Backend] Found existing backend on port 5000, using it');
+    backendPort = 5000;
+    return true;
+  } catch (e) {
+    // Backend not running, start it
+    console.log('[Backend] No existing backend found, starting new instance...');
   }
 
-  throw new Error('Backend failed to start within 30 seconds');
+  // Production: Start Python backend as child process
+  console.log('[Backend] Starting Python backend...');
+
+  // Check if Python exists
+  if (!fs.existsSync(PYTHON_PATH)) {
+    throw new Error(`Python not found at ${PYTHON_PATH}\n\nPlease install RDO Map Overlay using the official installer.`);
+  }
+
+  const backendScriptPath = path.join(app.getAppPath(), 'backend', 'app.py');
+
+  // Check if backend script exists
+  if (!fs.existsSync(backendScriptPath)) {
+    throw new Error(`Backend script not found at ${backendScriptPath}\n\nInstallation may be corrupted.`);
+  }
+
+  // Spawn Python backend
+  backendProcess = spawn(PYTHON_PATH, [backendScriptPath], {
+    env: { ...process.env },
+    cwd: path.join(app.getAppPath(), 'backend')
+  });
+
+  backendProcess.stdout.on('data', (data) => {
+    console.log(`[Backend] ${data.toString().trim()}`);
+  });
+
+  backendProcess.stderr.on('data', (data) => {
+    console.error(`[Backend Error] ${data.toString().trim()}`);
+  });
+
+  backendProcess.on('exit', (code) => {
+    console.log(`[Backend] Process exited with code ${code}`);
+    if (code !== 0 && code !== null) {
+      dialog.showErrorBox('Backend Crashed', 'The backend process crashed. Please restart the application.');
+      app.quit();
+    }
+  });
+
+  // Backend started in background - UI will show connection status
+  console.log('[Backend] Backend started. UI will connect when ready.');
+  console.log('[Backend] Initialization may take 10-60 seconds (up to 2 minutes on low-end systems).');
+  return true;
 }
 
 function stopBackend() {
-  // In production mode, backend is managed by launcher.bat and will stop when Electron exits
-  // In development mode, backend runs separately
-  // No action needed here
-  console.log('Frontend shutting down (backend managed externally)');
+  if (backendProcess) {
+    console.log('[Backend] Stopping backend process');
+    backendProcess.kill();
+    backendProcess = null;
+  }
 }
 
 // Check if RDO is the active window
 // Active window monitoring removed - user controls overlay visibility with F8 hotkey
-
-
-function createSetupWindow() {
-  setupWindow = new BrowserWindow({
-    width: 600,
-    height: 500,
-    transparent: false,
-    frame: true,
-    alwaysOnTop: true,
-    resizable: false,
-    show: false,
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false
-    }
-  });
-
-  setupWindow.loadFile('setup-progress.html');
-  setupWindow.setMenuBarVisibility(false);
-
-  setupWindow.once('ready-to-show', () => {
-    setupWindow.show();
-  });
-
-  return setupWindow;
-}
-
-function closeSetupWindow() {
-  if (setupWindow) {
-    setupWindow.close();
-    setupWindow = null;
-  }
-}
 
 async function showDisclaimerWindow() {
   return new Promise((resolve) => {
@@ -171,6 +158,8 @@ function showError(title, message) {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
+    x: 0,  // Position at screen origin
+    y: 0,
     width: 1920,
     height: 1080,
     transparent: true,
@@ -240,67 +229,9 @@ function createWindow() {
 
 app.whenReady().then(async () => {
   try {
-    // Check if running from installer (environment already set up)
-    const skipEnvSetup = process.env.RDO_SKIP_ENV_SETUP === '1' || process.env.RDO_INSTALLER_MODE === '1';
-
-    // Initialize environment managers
-    const appPath = isDev ? __dirname : app.getAppPath();
-    const nodeEnvManager = new NodeEnvironmentManager(appPath);
-
-    if (!isDev && !skipEnvSetup) {
-      pythonEnvManager = new PythonEnvironmentManager(app.getPath('userData'));
-    }
-
     // Check if first launch (disclaimer not accepted yet)
     const firstLaunchMarker = path.join(app.getPath('userData'), '.first-launch-complete');
     const isFirstLaunch = !fs.existsSync(firstLaunchMarker);
-
-    // Production: Check if environment needs setup
-    if (!isDev && !skipEnvSetup) {
-      const needsNodeSetup = !nodeEnvManager.isDependenciesInstalled();
-      const needsPythonSetup = pythonEnvManager ? !(await pythonEnvManager.isPythonReady()) : false;
-
-      if (needsNodeSetup || needsPythonSetup) {
-        const setupWin = createSetupWindow();
-
-        // Step 1: Install Node.js dependencies
-        if (needsNodeSetup) {
-          await nodeEnvManager.installDependencies((progress) => {
-            setupWin.webContents.send('setup-progress', {
-              step: 1,
-              ...progress
-            });
-          });
-        }
-
-        // Steps 2-4: Python setup
-        if (needsPythonSetup) {
-          // Setup progress updates - shift steps by 1
-          pythonEnvManager.on('progress', (data) => {
-            setupWin.webContents.send('setup-progress', {
-              ...data,
-              step: data.step + 1  // Shift from steps 1-3 to 2-4
-            });
-          });
-
-          pythonEnvManager.on('component-complete', (component) => {
-            setupWin.webContents.send('component-complete', component);
-          });
-
-          pythonEnvManager.on('error', (error) => {
-            setupWin.webContents.send('setup-error', error);
-          });
-
-          // Run Python setup
-          await pythonEnvManager.ensurePythonEnvironment();
-        }
-
-        closeSetupWindow();
-      }
-    }
-
-    // Start backend and wait for it to be ready
-    await startBackend();
 
     // Show disclaimer on first launch
     if (isFirstLaunch) {
@@ -309,11 +240,17 @@ app.whenReady().then(async () => {
       fs.writeFileSync(firstLaunchMarker, new Date().toISOString());
     }
 
-    // Create main overlay window
+    // Create main overlay window (show immediately for visual feedback)
     createWindow();
+
+    // Start backend in background (fire-and-forget)
+    // UI will show "Connecting..." until backend is ready
+    startBackend().catch(error => {
+      console.error('[Backend] Failed to start:', error);
+      // UI will show disconnected state - user can retry or check logs
+    });
   } catch (error) {
     console.error('Failed to start application:', error);
-    closeSetupWindow();
     showError('Startup Failed', `RDO Map Overlay could not start:\n\n${error.message}\n\nPlease try restarting the application.`);
     return;
   }

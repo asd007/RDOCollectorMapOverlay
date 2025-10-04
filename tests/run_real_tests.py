@@ -20,7 +20,7 @@ from core.image_preprocessing import preprocess_with_resize
 from config import MAP_DIMENSIONS
 
 
-def load_test_manifest(test_data_dir: str = "tests/test_data") -> Dict:
+def load_test_manifest(test_data_dir: str = "tests/data") -> Dict:
     """Load test manifest."""
     manifest_path = Path(test_data_dir) / "test_manifest.json"
     if not manifest_path.exists():
@@ -30,7 +30,7 @@ def load_test_manifest(test_data_dir: str = "tests/test_data") -> Dict:
         return json.load(f)
 
 
-def run_tests(test_data_dir: str = "tests/test_data"):
+def run_tests(test_data_dir: str = "tests/data"):
     """
     Run tests using captured real gameplay data.
 
@@ -95,7 +95,7 @@ def run_tests(test_data_dir: str = "tests/test_data"):
         # Load screenshot
         screenshot = cv2.imread(str(screenshot_path))
         if screenshot is None:
-            print(f"❌ {test_id}: Screenshot not found")
+            print(f"[ERROR] {test_id}: Screenshot not found")
             continue
 
         # Run matcher
@@ -139,7 +139,7 @@ def run_tests(test_data_dir: str = "tests/test_data"):
                 'cascade_level': cascade_level
             })
         else:
-            print(f"❌ {test_id}: Matching failed - {result.get('error', 'Unknown error')}")
+            print(f"[ERROR] {test_id}: Matching failed - {result.get('error', 'Unknown error')}")
             results.append({
                 'test_id': test_id,
                 'success': False,
@@ -157,7 +157,8 @@ def run_tests(test_data_dir: str = "tests/test_data"):
     accuracy_rate = (accurate / len(results)) * 100 if results else 0
 
     print(f"\nTotal tests: {len(results)}")
-    print(f"Successful matches: {successful}/{len(results)} ({success_rate:.1f}%)")
+    # Use the exact format that the GitHub workflow expects
+    print(f"Success rate: {successful}/{len(results)} ({success_rate:.1f}%)")
     print(f"Accurate positions: {accurate}/{len(results)} ({accuracy_rate:.1f}%)")
 
     if position_errors:
@@ -166,6 +167,14 @@ def run_tests(test_data_dir: str = "tests/test_data"):
         print(f"  Median: {np.median(position_errors):.1f}px")
         print(f"  P95: {np.percentile(position_errors, 95):.1f}px")
         print(f"  Max: {np.max(position_errors):.1f}px")
+
+    # Calculate average matching time for successful tests
+    match_times = [r.get('match_time_ms', 0) for r in results if r.get('success') and 'match_time_ms' in r]
+    if match_times:
+        avg_time = np.mean(match_times)
+        print(f"\nAverage time: {avg_time:.1f}ms")
+    else:
+        print(f"\nAverage time: 0.0ms")
 
     if timing_comparisons:
         print(f"\nTiming vs Reference:")
@@ -183,7 +192,7 @@ if __name__ == '__main__':
     import argparse
 
     parser = argparse.ArgumentParser(description='Run tests on real gameplay data')
-    parser.add_argument('--test-dir', default='tests/test_data', help='Test data directory')
+    parser.add_argument('--test-dir', default='tests/data', help='Test data directory')
     args = parser.parse_args()
 
     try:

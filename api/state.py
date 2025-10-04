@@ -7,11 +7,11 @@ from models import Collectible
 
 class OverlayState:
     """Global application state"""
-    
+
     # Fixed screen dimensions
     SCREEN_WIDTH = 1920
     SCREEN_HEIGHT = 1080
-    
+
     def __init__(self):
         self.full_map: Optional[np.ndarray] = None
         self.matcher = None
@@ -20,6 +20,9 @@ class OverlayState:
         self.collectibles_x: Optional[np.ndarray] = None
         self.collectibles_y: Optional[np.ndarray] = None
         self.is_initialized = False
+        self.game_focus_manager = None  # RDR2 window focus manager
+        self.click_observer = None  # Global mouse click observer
+        self.socketio = None  # SocketIO instance for WebSocket events
     
     def set_collectibles(self, collectibles: List[Collectible]):
         """Update collectibles and prepare numpy arrays for fast lookup"""
@@ -71,7 +74,10 @@ class OverlayState:
                     'name': col.name,
                     'category': col.category,
                     'tool': col.tool,
-                    'help': f"Collectible at ({col.lat:.2f}, {col.lng:.2f})"
+                    'help': col.help,
+                    'video': col.video,
+                    'lat': col.lat,
+                    'lng': col.lng
                 })
         
         return visible

@@ -63,7 +63,7 @@ def download_map(url: str, progress_callback: Optional[Callable[[int, int], None
                     if progress_callback and total_size:
                         progress_callback(downloaded, total_size)
 
-        print(f"✓ Map downloaded successfully: {downloaded / 1024 / 1024:.1f} MB")
+        print(f"[OK] Map downloaded successfully: {downloaded / 1024 / 1024:.1f} MB")
         return map_path
 
     except Exception as e:
@@ -108,7 +108,7 @@ def ensure_map_available(url: str) -> Path:
 
     map_path = download_map(url, progress_callback=progress)
     print("\n" + "="*60)
-    print("✓ Map download complete!")
+    print("[OK] Map download complete!")
     print("="*60 + "\n")
 
     return map_path

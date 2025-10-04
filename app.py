@@ -38,7 +38,7 @@ def _find_rdr2_window():
     def enum_handler(hwnd, ctx):
         if win32gui.IsWindowVisible(hwnd):
             title = win32gui.GetWindowText(hwnd)
-            if title and 'red dead redemption' in title.lower():
+            if title and title.lower() == 'red dead redemption 2':
                 windows.append(title)
     win32gui.EnumWindows(enum_handler, None)
     return windows[0] if windows else None

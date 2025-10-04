@@ -292,39 +292,19 @@ if (-not (Test-Path $headerBmpPath) -or -not (Test-Path $wizardBmpPath)) {
 Write-Host ""
 Write-Host "Frontend dependencies will be installed during installation (not bundled)" -ForegroundColor Cyan
 
-# Bundle backend source files to build/backend-source
+# Bundle backend source files using build script
 Write-Host ""
 Write-Host "Bundling backend source files..." -ForegroundColor Yellow
+$buildScriptPath = Resolve-Path "..\scripts\build-backend-source.js"
+
+# Run the Node.js build script
+& node $buildScriptPath
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Failed to bundle backend source files" -ForegroundColor Red
+    exit 1
+}
+
 $backendSourceDir = Join-Path $buildDir "backend-source"
-
-# Clean and recreate backend source directory
-if (Test-Path $backendSourceDir) {
-    Remove-Item $backendSourceDir -Recurse -Force
-}
-New-Item -ItemType Directory -Path $backendSourceDir -Force | Out-Null
-
-# Copy Python backend files
-$sourceRoot = Resolve-Path "..\..\"
-Copy-Item (Join-Path $sourceRoot "app.py") $backendSourceDir -Force
-Copy-Item (Join-Path $sourceRoot "requirements.txt") $backendSourceDir -Force
-
-# Copy backend modules (Python only - exclude node_modules, __pycache__, etc.)
-$modules = @("config", "core", "matching", "api", "models")
-foreach ($module in $modules) {
-    $targetDir = Join-Path $backendSourceDir $module
-    New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
-
-    # Only copy .py files, skip __pycache__ and other artifacts
-    Get-ChildItem (Join-Path $sourceRoot $module) -Filter "*.py" | ForEach-Object {
-        Copy-Item $_.FullName $targetDir -Force
-    }
-}
-
-# Copy data directory (JSON files only)
-$dataDir = Join-Path $backendSourceDir "data"
-New-Item -ItemType Directory -Path $dataDir -Force | Out-Null
-Copy-Item (Join-Path $sourceRoot "data\*.json") $dataDir -Force -ErrorAction SilentlyContinue
-
 Write-Host "Backend source bundled to: $backendSourceDir" -ForegroundColor Green
 
 # Count files
@@ -354,6 +334,25 @@ if (Test-Path "..\..\frontend\package.json") {
     } catch {
         # Ignore git errors
     }
+}
+
+# Convert semantic version to NSIS-compatible format (X.X.X.X)
+# NSIS VIProductVersion requires exactly 4 numeric parts
+# Strip pre-release suffix (e.g., "0.1.0-rc.1" -> "0.1.0.1")
+$nsisVersion = $version
+if ($version -match '^(\d+\.\d+\.\d+)(-(.+))?$') {
+    $baseVersion = $matches[1]  # e.g., "0.1.0"
+    $preRelease = $matches[3]   # e.g., "rc.1"
+
+    # Extract build number from pre-release suffix if present
+    $buildNumber = 0
+    if ($preRelease -match '(\d+)$') {
+        $buildNumber = $matches[1]
+    }
+
+    # Create 4-part version: "0.1.0.1"
+    $nsisVersion = "$baseVersion.$buildNumber"
+    Write-Host "Converted to NSIS version: $nsisVersion (for VIProductVersion)" -ForegroundColor Gray
 }
 
 # Ensure build output directory exists
@@ -389,7 +388,7 @@ if ($lockedFiles.Count -gt 0) {
     exit 1
 }
 
-$process = Start-Process -FilePath $makensisPath -ArgumentList "/V3", "/DPRODUCT_VERSION=$version", "installer-main.nsi" -Wait -NoNewWindow -PassThru -WorkingDirectory $PSScriptRoot
+$process = Start-Process -FilePath $makensisPath -ArgumentList "/V3", "/DPRODUCT_VERSION=$nsisVersion", "installer-main.nsi" -Wait -NoNewWindow -PassThru -WorkingDirectory $PSScriptRoot
 
 if ($process.ExitCode -ne 0) {
     Write-Host ""

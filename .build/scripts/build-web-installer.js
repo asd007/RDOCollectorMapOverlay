@@ -12,9 +12,9 @@ const crypto = require('crypto');
 const ROOT_DIR = path.join(__dirname, '..');
 
 console.log('');
-console.log('╔════════════════════════════════════════╗');
-console.log('║  RDO Map Overlay - Web Installer Build ║');
-console.log('╚════════════════════════════════════════╝');
+console.log('============================================');
+console.log('    RDO Map Overlay - Web Installer Build   ');
+console.log('============================================');
 console.log('');
 
 function run(command, options = {}) {
@@ -25,7 +25,7 @@ function run(command, options = {}) {
       ...options
     });
   } catch (e) {
-    console.error(`\n❌ Command failed: ${command}`);
+    console.error(`\n[ERROR] Command failed: ${command}`);
     process.exit(1);
   }
 }
@@ -50,8 +50,8 @@ function updateManifest(backendPath, mapPath) {
     if (backendComponent) {
       backendComponent.sha256 = backendHash;
       backendComponent.size = backendSize;
-      console.log(`✓ Backend hash: ${backendHash}`);
-      console.log(`✓ Backend size: ${(backendSize / 1024 / 1024).toFixed(2)} MB`);
+      console.log(`[OK] Backend hash: ${backendHash}`);
+      console.log(`[OK] Backend size: ${(backendSize / 1024 / 1024).toFixed(2)} MB`);
     }
   }
 
@@ -64,14 +64,14 @@ function updateManifest(backendPath, mapPath) {
     if (mapComponent) {
       mapComponent.sha256 = mapHash;
       mapComponent.size = mapSize;
-      console.log(`✓ Map hash: ${mapHash}`);
-      console.log(`✓ Map size: ${(mapSize / 1024 / 1024).toFixed(2)} MB`);
+      console.log(`[OK] Map hash: ${mapHash}`);
+      console.log(`[OK] Map size: ${(mapSize / 1024 / 1024).toFixed(2)} MB`);
     }
   }
 
   // Save updated manifest
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
-  console.log('✓ Updated components manifest');
+  console.log('[OK] Updated components manifest');
 }
 
 async function main() {
@@ -81,12 +81,12 @@ async function main() {
   // Step 1: Build backend (optional)
   if (buildBackend) {
     console.log('📦 Step 1/4: Building Backend');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('--------------------------------------------');
     run('pyinstaller app.spec');
 
     const backendPath = path.join(ROOT_DIR, 'dist', 'rdo-overlay-backend.exe');
     if (!fs.existsSync(backendPath)) {
-      console.error('❌ Backend build failed - executable not found');
+      console.error('[ERROR] Backend build failed - executable not found');
       process.exit(1);
     }
 
@@ -96,14 +96,14 @@ async function main() {
       fs.mkdirSync(backendReleaseDir, { recursive: true });
     }
     fs.copyFileSync(backendPath, path.join(backendReleaseDir, 'rdo-overlay-backend.exe'));
-    console.log('✓ Backend built successfully');
+    console.log('[OK] Backend built successfully');
     console.log('');
   }
 
   // Step 2: Update component hashes
   if (updateHashes) {
     console.log('📦 Step 2/4: Updating Component Hashes');
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('--------------------------------------------');
 
     const backendPath = path.join(ROOT_DIR, 'release', 'backend', 'rdo-overlay-backend.exe');
     const mapPath = path.join(ROOT_DIR, 'data', 'rdr2_map_hq.png');
@@ -114,13 +114,13 @@ async function main() {
 
   // Step 3: Install frontend dependencies
   console.log('📦 Step 3/4: Preparing Frontend');
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('--------------------------------------------');
   run('npm ci', { cwd: path.join(ROOT_DIR, 'frontend') });
   console.log('');
 
   // Step 4: Build web installer
   console.log('📦 Step 4/4: Building Web Installer');
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('--------------------------------------------');
 
   // Clean dist directory
   const distDir = path.join(ROOT_DIR, 'dist');
@@ -134,7 +134,7 @@ async function main() {
   // Check output
   const webInstallerPath = path.join(ROOT_DIR, 'dist', 'RDO-Map-Overlay-Setup-Web.exe');
   if (!fs.existsSync(webInstallerPath)) {
-    console.error('❌ Web installer not found at expected location');
+    console.error('[ERROR] Web installer not found at expected location');
     process.exit(1);
   }
 
@@ -142,18 +142,18 @@ async function main() {
   const installerHash = calculateHash(webInstallerPath);
 
   console.log('');
-  console.log('╔════════════════════════════════════════╗');
-  console.log('║  ✅ Web Installer Build Complete!     ║');
-  console.log('╚════════════════════════════════════════╝');
+  console.log('============================================');
+  console.log('    [SUCCESS] Web Installer Build Complete!       ');
+  console.log('============================================');
   console.log('');
   console.log('📊 Build Statistics:');
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('--------------------------------------------');
   console.log(`📦 Web Installer: ${(installerSize / 1024 / 1024).toFixed(2)} MB`);
   console.log(`🔒 SHA256: ${installerHash}`);
   console.log(`📍 Location: ${webInstallerPath}`);
   console.log('');
   console.log('📋 Next Steps:');
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('--------------------------------------------');
   console.log('1. Test the web installer locally');
   console.log('2. Upload backend to GitHub Release (if built)');
   console.log('3. Update components-manifest.json with correct URLs');
@@ -163,7 +163,7 @@ async function main() {
 
   // Generate release commands
   console.log('📝 GitHub Release Commands:');
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('--------------------------------------------');
   console.log('# Create backend release (if needed):');
   console.log('git tag backend-v1.0.0');
   console.log('git push origin backend-v1.0.0');
@@ -175,6 +175,6 @@ async function main() {
 }
 
 main().catch(err => {
-  console.error('\n❌ Build failed:', err);
+  console.error('\n[ERROR] Build failed:', err);
   process.exit(1);
 });

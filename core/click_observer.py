@@ -60,7 +60,7 @@ class ClickObserver:
             return
 
         if not CLICK_OBSERVATION_AVAILABLE:
-            print("✗ Click observation unavailable (pynput not installed)")
+            print("[ERROR] Click observation unavailable (pynput not installed)")
             return
 
         self.running = True
@@ -69,7 +69,7 @@ class ClickObserver:
         self.listener = mouse.Listener(on_click=self._on_click)
         self.listener.start()
 
-        print("✓ Click observer started (global mouse hooks - observe only)")
+        print("[OK] Click observer started (global mouse hooks - observe only)")
 
     def stop(self):
         """Stop observing clicks"""
@@ -82,4 +82,4 @@ class ClickObserver:
             self.listener.stop()
             self.listener = None
 
-        print("✓ Click observer stopped")
+        print("[OK] Click observer stopped")

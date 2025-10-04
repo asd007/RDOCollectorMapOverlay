@@ -16,13 +16,13 @@ const BUILD_DIR = path.join(ROOT_DIR, 'build');
 const UNPACKED_DIR = path.join(BUILD_DIR, 'frontend', 'win-unpacked');
 const SPLIT_DIR = path.join(BUILD_DIR, 'split-release');
 
-console.log('╔════════════════════════════════════════╗');
-console.log('║  RDO Map Overlay - Split Release      ║');
-console.log('╚════════════════════════════════════════╝\n');
+console.log('============================================');
+console.log('    RDO Map Overlay - Split Release        ');
+console.log('============================================\n');
 
 // Step 1: Ensure we have a build
 if (!fs.existsSync(UNPACKED_DIR)) {
-  console.log('❌ No unpacked build found. Run: node .build/build-release.js first');
+  console.log('[ERROR] No unpacked build found. Run: node .build/build-release.js first');
   process.exit(1);
 }
 
@@ -34,7 +34,7 @@ fs.mkdirSync(SPLIT_DIR, { recursive: true });
 
 // Step 2: Create runtime package (Electron + system DLLs)
 console.log('📦 Step 1/3: Creating runtime package...');
-console.log('━'.repeat(50));
+console.log('--------------------------------------------'.repeat(50));
 
 const runtimeDir = path.join(SPLIT_DIR, 'runtime-temp');
 fs.mkdirSync(runtimeDir, { recursive: true });
@@ -73,7 +73,7 @@ runtimeFiles.forEach(file => {
       fs.mkdirSync(path.dirname(dest), { recursive: true });
       fs.copyFileSync(src, dest);
     }
-    console.log(`  ✓ ${file}`);
+    console.log(`  [OK] ${file}`);
   }
 });
 
@@ -86,11 +86,11 @@ execSync(
 );
 
 const runtimeSize = (fs.statSync(runtimeZip).size / 1024 / 1024).toFixed(1);
-console.log(`✅ Runtime package: ${runtimeSize} MB`);
+console.log(`[SUCCESS] Runtime package: ${runtimeSize} MB`);
 
 // Step 3: Create code package (app.asar + backend)
 console.log('\n📦 Step 2/3: Creating code package...');
-console.log('━'.repeat(50));
+console.log('--------------------------------------------'.repeat(50));
 
 const codeDir = path.join(SPLIT_DIR, 'code-temp');
 fs.mkdirSync(path.join(codeDir, 'resources'), { recursive: true });
@@ -99,7 +99,7 @@ fs.mkdirSync(path.join(codeDir, 'resources'), { recursive: true });
 const appAsarSrc = path.join(UNPACKED_DIR, 'resources', 'app.asar');
 const appAsarDest = path.join(codeDir, 'resources', 'app.asar');
 fs.copyFileSync(appAsarSrc, appAsarDest);
-console.log('  ✓ app.asar');
+console.log('  [OK] app.asar');
 
 // Copy backend
 const backendSrcDir = path.join(UNPACKED_DIR, 'resources', 'backend');
@@ -112,7 +112,7 @@ if (fs.existsSync(backendSrcDir)) {
       path.join(backendDestDir, file)
     );
   });
-  console.log('  ✓ backend/');
+  console.log('  [OK] backend/');
 }
 
 // Zip code
@@ -124,11 +124,11 @@ execSync(
 );
 
 const codeSize = (fs.statSync(codeZip).size / 1024 / 1024).toFixed(1);
-console.log(`✅ Code package: ${codeSize} MB`);
+console.log(`[SUCCESS] Code package: ${codeSize} MB`);
 
 // Step 4: Build bootstrap installer
 console.log('\n📦 Step 3/3: Building bootstrap installer...');
-console.log('━'.repeat(50));
+console.log('--------------------------------------------'.repeat(50));
 
 const bootstrapDir = path.join(__dirname, 'bootstrap');
 
@@ -145,7 +145,7 @@ execSync('npm run build', { cwd: bootstrapDir, stdio: 'inherit' });
 const bootstrapExe = fs.readdirSync(path.join(BUILD_DIR, 'bootstrap')).find(f => f.endsWith('.exe'));
 if (bootstrapExe) {
   const bootstrapSize = (fs.statSync(path.join(BUILD_DIR, 'bootstrap', bootstrapExe)).size / 1024 / 1024).toFixed(1);
-  console.log(`✅ Bootstrap installer: ${bootstrapSize} MB`);
+  console.log(`[SUCCESS] Bootstrap installer: ${bootstrapSize} MB`);
 }
 
 // Cleanup temp directories
@@ -153,9 +153,9 @@ fs.rmSync(runtimeDir, { recursive: true });
 fs.rmSync(codeDir, { recursive: true });
 
 // Summary
-console.log('\n╔════════════════════════════════════════╗');
-console.log('║  ✅ Split Release Complete!           ║');
-console.log('╚════════════════════════════════════════╝\n');
+console.log('\n============================================');
+console.log('    [SUCCESS] Split Release Complete!             ');
+console.log('============================================\n');
 
 console.log('📦 Packages created:');
 console.log(`  1. runtime.zip (${runtimeSize} MB) - Upload once to GitHub Releases`);

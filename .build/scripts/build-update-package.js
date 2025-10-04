@@ -13,9 +13,9 @@ const BUILD_DIR = path.join(ROOT_DIR, 'build');
 const UPDATE_DIR = path.join(BUILD_DIR, 'update-package');
 const VERSION = require(path.join(ROOT_DIR, 'frontend', 'package.json')).version;
 
-console.log('╔════════════════════════════════════════╗');
-console.log('║  RDO Map Overlay - Update Package     ║');
-console.log('╚════════════════════════════════════════╝\n');
+console.log('============================================');
+console.log('    RDO Map Overlay - Update Package       ');
+console.log('============================================\n');
 
 // Clean update directory
 if (fs.existsSync(UPDATE_DIR)) {
@@ -31,7 +31,7 @@ fs.mkdirSync(path.dirname(appAsarDest), { recursive: true });
 fs.copyFileSync(appAsarSrc, appAsarDest);
 
 const appAsarSize = (fs.statSync(appAsarSrc).size / 1024 / 1024).toFixed(1);
-console.log(`  ✓ Frontend: ${appAsarSize} MB`);
+console.log(`  [OK] Frontend: ${appAsarSize} MB`);
 
 // Copy backend (if exists)
 const backendSrc = path.join(BUILD_DIR, 'backend', 'rdo-overlay-backend.exe');
@@ -42,7 +42,7 @@ if (fs.existsSync(backendSrc)) {
   fs.copyFileSync(backendSrc, backendDest);
 
   const backendSize = (fs.statSync(backendSrc).size / 1024 / 1024).toFixed(1);
-  console.log(`  ✓ Backend: ${backendSize} MB`);
+  console.log(`  [OK] Backend: ${backendSize} MB`);
 }
 
 // Create version info file
@@ -100,14 +100,14 @@ try {
 
   const zipSize = (fs.statSync(zipPath).size / 1024 / 1024).toFixed(1);
 
-  console.log('\n╔════════════════════════════════════════╗');
-  console.log('║  ✅ Update Package Created!           ║');
-  console.log('╚════════════════════════════════════════╝\n');
+  console.log('\n============================================');
+  console.log('    [SUCCESS] Update Package Created!             ');
+  console.log('============================================\n');
   console.log(`📍 Update package: build/${zipName}`);
   console.log(`📊 Size: ${zipSize} MB (vs ${BUILD_DIR.includes('302') ? '302' : '123'} MB full installer)`);
   console.log(`\n💡 Users extract this into their installation folder to update`);
 
 } catch (error) {
-  console.error('❌ Failed to create zip:', error.message);
+  console.error('[ERROR] Failed to create zip:', error.message);
   process.exit(1);
 }
