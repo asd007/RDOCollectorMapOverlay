@@ -1,17 +1,28 @@
-const { app, BrowserWindow, globalShortcut, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, globalShortcut, ipcMain, dialog, screen } = require('electron');
 const path = require('path');
 const axios = require('axios');
 const { spawn } = require('child_process');
 const fs = require('fs');
 const os = require('os');
+const PythonEnvironmentManager = require('./python-environment-manager');
+const NodeEnvironmentManager = require('./node-environment-manager');
+
+// Ensure single instance
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  console.log('Another instance is already running. Exiting...');
+  app.quit();
+}
 
 let mainWindow;
-let splashWindow;
+let setupWindow;
+let disclaimerWindow;
 let backendProcess = null;
 let backendPort = null;
 let isOverlayVisible = true;
 let currentOpacity = 0.7;
 const isDev = process.argv.includes('--dev');
+let pythonEnvManager = null;
 
 // Disable GPU and hardware acceleration to prevent GPU process crashes
 app.disableHardwareAcceleration();
@@ -24,59 +35,25 @@ app.commandLine.appendSwitch('--disable-software-rasterizer');
 app.commandLine.appendSwitch('--no-sandbox');
 
 // Backend management
-function getBackendPath() {
-  if (isDev) {
-    // Development: backend runs separately (python app.py)
-    return null;
-  }
-  // Production: backend is bundled in resources
-  return path.join(process.resourcesPath, 'backend', 'rdo-overlay-backend.exe');
-}
-
 function getPortFilePath() {
   return path.join(os.tmpdir(), 'rdo_overlay_port.json');
 }
 
 async function startBackend() {
-  const backendPath = getBackendPath();
-
-  if (!backendPath) {
+  if (isDev) {
     console.log('Development mode: Expecting backend to run separately');
     // In dev mode, assume backend is at localhost:5000
     backendPort = 5000;
     return true;
   }
 
-  if (!fs.existsSync(backendPath)) {
-    throw new Error(`Backend not found at: ${backendPath}`);
-  }
+  // Production: backend is launched by launcher.bat before Electron starts
+  // Just wait for the port file and connect
+  console.log('Production mode: Waiting for backend to be ready...');
 
-  console.log(`Starting backend: ${backendPath}`);
-
-  // Clean up old port file
   const portFile = getPortFilePath();
-  if (fs.existsSync(portFile)) {
-    fs.unlinkSync(portFile);
-  }
-
-  // Spawn backend process (hidden, no console window)
-  backendProcess = spawn(backendPath, [], {
-    windowsHide: true,
-    detached: false,
-    stdio: 'ignore' // Ignore stdin/stdout/stderr
-  });
-
-  backendProcess.on('error', (err) => {
-    console.error('Backend process error:', err);
-  });
-
-  backendProcess.on('exit', (code) => {
-    console.log(`Backend exited with code ${code}`);
-    backendProcess = null;
-  });
 
   // Wait for backend to write port file
-  console.log('Waiting for backend to start...');
   for (let i = 0; i < 30; i++) {
     await new Promise(r => setTimeout(r, 1000));
 
@@ -84,11 +61,11 @@ async function startBackend() {
       try {
         const data = JSON.parse(fs.readFileSync(portFile, 'utf8'));
         backendPort = data.port;
-        console.log(`Backend ready on port ${backendPort}`);
 
         // Verify backend is responding
         try {
           await axios.get(`http://127.0.0.1:${backendPort}/status`, { timeout: 2000 });
+          console.log(`Backend ready on port ${backendPort}`);
           return true;
         } catch (e) {
           // Port file exists but backend not responding yet, continue waiting
@@ -103,19 +80,22 @@ async function startBackend() {
 }
 
 function stopBackend() {
-  if (backendProcess) {
-    console.log('Stopping backend...');
-    backendProcess.kill();
-    backendProcess = null;
-  }
+  // In production mode, backend is managed by launcher.bat and will stop when Electron exits
+  // In development mode, backend runs separately
+  // No action needed here
+  console.log('Frontend shutting down (backend managed externally)');
 }
 
-function createSplash() {
-  splashWindow = new BrowserWindow({
-    width: 400,
-    height: 200,
-    transparent: true,
-    frame: false,
+// Check if RDO is the active window
+// Active window monitoring removed - user controls overlay visibility with F8 hotkey
+
+
+function createSetupWindow() {
+  setupWindow = new BrowserWindow({
+    width: 600,
+    height: 500,
+    transparent: false,
+    frame: true,
     alwaysOnTop: true,
     resizable: false,
     show: false,
@@ -125,64 +105,63 @@ function createSplash() {
     }
   });
 
-  // Simple HTML splash screen
-  splashWindow.loadURL(`data:text/html;charset=utf-8,
-    <html>
-      <head>
-        <style>
-          body {
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            font-family: Arial, sans-serif;
-            background: rgba(30, 30, 30, 0.95);
-            color: white;
-          }
-          .container {
-            text-align: center;
-          }
-          h1 {
-            font-size: 24px;
-            margin-bottom: 10px;
-          }
-          .spinner {
-            width: 50px;
-            height: 50px;
-            margin: 20px auto;
-            border: 4px solid #333;
-            border-top: 4px solid #fff;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-          }
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h1>RDO Map Overlay</h1>
-          <div class="spinner"></div>
-          <p>Starting...</p>
-        </div>
-      </body>
-    </html>
-  `);
+  setupWindow.loadFile('setup-progress.html');
+  setupWindow.setMenuBarVisibility(false);
 
-  splashWindow.once('ready-to-show', () => {
-    splashWindow.show();
+  setupWindow.once('ready-to-show', () => {
+    setupWindow.show();
   });
+
+  return setupWindow;
 }
 
-function closeSplash() {
-  if (splashWindow) {
-    splashWindow.close();
-    splashWindow = null;
+function closeSetupWindow() {
+  if (setupWindow) {
+    setupWindow.close();
+    setupWindow = null;
   }
+}
+
+async function showDisclaimerWindow() {
+  return new Promise((resolve) => {
+    disclaimerWindow = new BrowserWindow({
+      width: 600,
+      height: 400,
+      transparent: false,
+      frame: true,
+      alwaysOnTop: true,
+      resizable: false,
+      show: false,
+      webPreferences: {
+        nodeIntegration: true,
+        contextIsolation: false
+      }
+    });
+
+    disclaimerWindow.loadFile('first-launch-disclaimer.html');
+    disclaimerWindow.setMenuBarVisibility(false);
+
+    disclaimerWindow.once('ready-to-show', () => {
+      disclaimerWindow.show();
+    });
+
+    // Listen for acceptance
+    ipcMain.once('disclaimer-accepted', () => {
+      if (disclaimerWindow) {
+        disclaimerWindow.close();
+        disclaimerWindow = null;
+      }
+      resolve();
+    });
+
+    disclaimerWindow.on('closed', () => {
+      disclaimerWindow = null;
+      // If closed without accepting, quit
+      if (!mainWindow) {
+        app.quit();
+      }
+    });
+  });
 }
 
 function showError(title, message) {
@@ -199,6 +178,7 @@ function createWindow() {
     alwaysOnTop: true,
     skipTaskbar: true,
     resizable: false,
+    title: 'RDO Map Overlay', // Set explicit title for backend detection
     // Additional stability options
     show: false, // Don't show until ready
     webPreferences: {
@@ -216,17 +196,27 @@ function createWindow() {
     }
   });
 
-  // REMOVED click-through - let users interact normally with the overlay
-  // mainWindow.setIgnoreMouseEvents(true, { forward: true });
+  // Set screen-saver priority so overlay always stays on top
+  mainWindow.setAlwaysOnTop(true, 'screen-saver');
+
+  // Enable click-through - all mouse interactions handled by backend global listener
+  mainWindow.setIgnoreMouseEvents(true, { forward: true });
 
   mainWindow.loadFile('index.html');
 
   // Remove menu bar
   mainWindow.setMenuBarVisibility(false);
 
+  // Force window title after page load (Electron sometimes uses HTML title)
+  mainWindow.webContents.on('did-finish-load', () => {
+    mainWindow.setTitle('RDO Map Overlay');
+  });
+
   // Show window when ready to prevent flash
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+    // Set title again to be sure
+    mainWindow.setTitle('RDO Map Overlay');
   });
 
   // Error handling
@@ -250,18 +240,80 @@ function createWindow() {
 
 app.whenReady().then(async () => {
   try {
-    // Show splash screen
-    createSplash();
+    // Check if running from installer (environment already set up)
+    const skipEnvSetup = process.env.RDO_SKIP_ENV_SETUP === '1' || process.env.RDO_INSTALLER_MODE === '1';
+
+    // Initialize environment managers
+    const appPath = isDev ? __dirname : app.getAppPath();
+    const nodeEnvManager = new NodeEnvironmentManager(appPath);
+
+    if (!isDev && !skipEnvSetup) {
+      pythonEnvManager = new PythonEnvironmentManager(app.getPath('userData'));
+    }
+
+    // Check if first launch (disclaimer not accepted yet)
+    const firstLaunchMarker = path.join(app.getPath('userData'), '.first-launch-complete');
+    const isFirstLaunch = !fs.existsSync(firstLaunchMarker);
+
+    // Production: Check if environment needs setup
+    if (!isDev && !skipEnvSetup) {
+      const needsNodeSetup = !nodeEnvManager.isDependenciesInstalled();
+      const needsPythonSetup = pythonEnvManager ? !(await pythonEnvManager.isPythonReady()) : false;
+
+      if (needsNodeSetup || needsPythonSetup) {
+        const setupWin = createSetupWindow();
+
+        // Step 1: Install Node.js dependencies
+        if (needsNodeSetup) {
+          await nodeEnvManager.installDependencies((progress) => {
+            setupWin.webContents.send('setup-progress', {
+              step: 1,
+              ...progress
+            });
+          });
+        }
+
+        // Steps 2-4: Python setup
+        if (needsPythonSetup) {
+          // Setup progress updates - shift steps by 1
+          pythonEnvManager.on('progress', (data) => {
+            setupWin.webContents.send('setup-progress', {
+              ...data,
+              step: data.step + 1  // Shift from steps 1-3 to 2-4
+            });
+          });
+
+          pythonEnvManager.on('component-complete', (component) => {
+            setupWin.webContents.send('component-complete', component);
+          });
+
+          pythonEnvManager.on('error', (error) => {
+            setupWin.webContents.send('setup-error', error);
+          });
+
+          // Run Python setup
+          await pythonEnvManager.ensurePythonEnvironment();
+        }
+
+        closeSetupWindow();
+      }
+    }
 
     // Start backend and wait for it to be ready
     await startBackend();
 
-    // Close splash and create main window
-    closeSplash();
+    // Show disclaimer on first launch
+    if (isFirstLaunch) {
+      await showDisclaimerWindow();
+      // Mark first launch as complete
+      fs.writeFileSync(firstLaunchMarker, new Date().toISOString());
+    }
+
+    // Create main overlay window
     createWindow();
   } catch (error) {
     console.error('Failed to start application:', error);
-    closeSplash();
+    closeSetupWindow();
     showError('Startup Failed', `RDO Map Overlay could not start:\n\n${error.message}\n\nPlease try restarting the application.`);
     return;
   }
@@ -341,7 +393,34 @@ ipcMain.handle('get-backend-port', () => {
   return backendPort || 5000;
 });
 
-// Remove the enable-right-click IPC handler since we don't need it anymore
+// Cursor position and click-through control
+ipcMain.handle('get-cursor-position', () => {
+  const point = screen.getCursorScreenPoint();
+  return { x: point.x, y: point.y };
+});
+
+// Click-through control - toggled when video player or menus are open
+ipcMain.handle('set-click-through', (event, enabled) => {
+  if (mainWindow) {
+    mainWindow.setIgnoreMouseEvents(enabled, { forward: true });
+  }
+});
+
+// Control overlay visibility based on RDR2 focus state
+ipcMain.on('set-overlay-visibility', (event, visible) => {
+  if (mainWindow) {
+    if (visible) {
+      // RDR2 active - show overlay
+      mainWindow.showInactive(); // Show without stealing focus
+      mainWindow.setAlwaysOnTop(true, 'screen-saver');
+    } else {
+      // RDR2 inactive - hide overlay completely
+      mainWindow.hide();
+    }
+  }
+});
+
+// Interaction tracking removed - overlay visibility controlled by F8 hotkey only
 
 // Handle app activation properly
 app.on('before-quit', () => {

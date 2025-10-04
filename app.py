@@ -59,21 +59,14 @@ def initialize_system():
         print("Loading map with optimized preprocessing (resize in grayscale)...")
         from config.paths import CachePaths, ExternalURLs
 
-        # Check if map exists, download if needed
+        # Check if map exists
         hq_source = CachePaths.find_hq_map_source()
-        if not hq_source:
-            print("HQ map not found locally - downloading from GitHub...")
-            try:
-                from core.map_downloader import ensure_map_available
-                hq_source = ensure_map_available(ExternalURLs.HQ_MAP_DOWNLOAD_URL)
-            except Exception as e:
-                print(f"ERROR: Failed to download HQ map: {e}")
-                print("\nPlease manually download rdr2_map_hq.png and place it in:")
-                print(f"  - {CachePaths.DATA_DIR / CachePaths.HQ_MAP_SOURCE_FILE}")
-                return None
-
         if not hq_source or not hq_source.exists():
-            print("ERROR: Failed to find HQ map!")
+            print("ERROR: HQ map not found!")
+            print("\nThe map file is required but was not found in any of the expected locations.")
+            print("Please ensure the installer downloaded the map data during installation.")
+            print("\nExpected locations:")
+            print(f"  - Installation: {CachePaths.DATA_DIR / CachePaths.HQ_MAP_SOURCE_FILE}")
             return None
 
         # Load as color, will convert to grayscale in preprocessing
@@ -160,7 +153,10 @@ def initialize_system():
                 frame_lock = threading.Lock()
                 capture_active = True
 
-                game_capture = WindowsCapture(window_name=window_title)
+                game_capture = WindowsCapture(
+                    window_name=window_title,
+                    cursor_capture=False  # Hide cursor in screen captures
+                )
 
                 @game_capture.event
                 def on_frame_arrived(frame, capture_control):
@@ -265,6 +261,20 @@ def main():
     # Set socketio on capture service for push updates
     if state.capture_service:
         state.capture_service.socketio = socketio
+
+    # Initialize game focus manager (RDR2 window monitoring)
+    from core.game_focus_manager import GameFocusManager
+    from core.click_observer import ClickObserver
+
+    def event_emitter(event_name, data):
+        """Emit events via WebSocket"""
+        socketio.emit(event_name, data, namespace='/')
+
+    state.game_focus_manager = GameFocusManager(emit_callback=event_emitter)
+    state.game_focus_manager.start()
+
+    state.click_observer = ClickObserver(emit_callback=event_emitter)
+    state.click_observer.start()
 
     # Start server
     print(f"Server starting on http://{SERVER.HOST}:{port}")

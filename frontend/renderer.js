@@ -11,7 +11,7 @@ console.log = function(...args) {
     originalLog.apply(console, args);
 };
 
-const { ipcRenderer } = require('electron');
+const { ipcRenderer, shell } = require('electron');
 const axios = require('axios');
 const io = require('socket.io-client');
 
@@ -54,7 +54,6 @@ const hotkeys = document.getElementById('hotkeys');
 const alignmentProgress = document.getElementById('alignment-progress');
 const progressFill = document.getElementById('progress-fill');
 const progressText = document.getElementById('progress-text');
-const interactionHint = document.getElementById('interaction-hint');
 
 // State
 let overlayVisible = true;
@@ -63,14 +62,17 @@ let isAligning = false;
 let isTracking = false;
 let currentCollectibles = [];
 let currentFPS = 5; // Now using continuous capture at 5fps
-let collectedItems = new Set(); // Track collected items
+let collectedItems = loadCollectedItems(); // Track collected items (persisted)
 let hoveredCollectible = null; // Track hovered collectible
 let continuousCapture = true; // Enable continuous capture
 let socket = null; // WebSocket connection
 let isBackendConnected = false; // Track backend connection status
+let isRdr2Active = null; // Track RDR2 window state (null until first event received)
+let isClickThroughEnabled = true; // Track click-through state (disabled when video player/menus open)
 
 // Tooltip element
 let tooltip = null;
+let tooltipHideTimeout = null;
 
 // Collectible type colors (BGR in Python, RGB in JS)
 const TYPE_COLORS = {
@@ -88,11 +90,26 @@ const TYPE_COLORS = {
   'fossils': { r: 34, g: 197, b: 94 }
 };
 
-// Collectible sizes (20x20 pixels)
+// Collectible type icons (cute emoji representations)
+const TYPE_ICONS = {
+  'arrowhead': '🎯',     // Red/white target
+  'coin': '🪙',          // Gold coin
+  'heirloom': '👑',      // Gold crown
+  'bottle': '🍾',        // Gold/green bottle
+  'egg': '🥚',           // White/beige egg
+  'flower': '🌺',        // Pink/red flower
+  'card': '🎴',          // Red card
+  'fossil': '🦴',        // White bone
+  'jewelry': '💍',       // Gold ring with gem
+  'cups': '🏆',          // Gold trophy
+  'wands': '⭐',         // Yellow star
+  'fossils': '🦴'        // White bone
+};
+
+// Collectible sizes (48x48 pixels at 2.4x)
 const COLLECTIBLE_SIZE = {
-  outerRadius: 10,  // 20px diameter
-  innerRadius: 4,   // 8px diameter
-  glowRadius: 12    // 24px diameter for glow effect
+  outerRadius: 24,  // 48px diameter (3x from original 20px)
+  hitRadius: 40     // Hit detection radius (larger for easier targeting and click-through responsiveness)
 };
 
 // Create tooltip element
@@ -101,130 +118,413 @@ function createTooltip() {
   tooltip.id = 'collectible-tooltip';
   tooltip.style.cssText = `
     position: absolute;
-    background: rgba(0, 0, 0, 0.9);
+    background: rgba(0, 0, 0, 0.95);
     backdrop-filter: blur(10px);
     border: 2px solid rgba(217, 119, 6, 0.7);
     border-radius: 8px;
-    padding: 12px;
+    padding: 18px;
     color: white;
-    font-size: 12px;
+    font-size: 18px;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    max-width: 300px;
+    max-width: 450px;
     z-index: 10000;
-    pointer-events: none;
+    pointer-events: auto;
     display: none;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
   `;
+
   document.body.appendChild(tooltip);
 }
 
-// Show tooltip for collectible
-function showTooltip(collectible, x, y) {
+// Show tooltip for collectible (called from backend with pre-calculated position)
+function showTooltip(collectible, tooltipX, tooltipY) {
   if (!tooltip) return;
-  
+
+  // Cancel any pending hide when new tooltip appears
+  cancelTooltipHide();
+
   const name = collectible.name || 'Unknown';
   const type = collectible.type || 'unknown';
   const helpText = collectible.help || '';
   const videoLink = collectible.video || '';
-  
+
   let tooltipHTML = `
-    <div style="font-weight: bold; color: #fbbf24; margin-bottom: 6px;">${name}</div>
-    <div style="font-size: 10px; color: #9ca3af; margin-bottom: 4px;">Type: ${type}</div>
+    <div style="font-weight: bold; color: #fbbf24; margin-bottom: 9px; font-size: 20px;">${name}</div>
+    <div style="font-size: 15px; color: #9ca3af; margin-bottom: 6px;">Type: ${type}</div>
   `;
-  
+
   if (helpText) {
-    tooltipHTML += `<div style="margin-bottom: 6px; font-size: 11px;">${helpText}</div>`;
+    tooltipHTML += `<div style="margin-bottom: 9px; font-size: 16px; line-height: 1.4;">${helpText}</div>`;
   }
-  
+
   if (videoLink) {
-    tooltipHTML += `<div style="font-size: 10px;">
-      <a href="${videoLink}" target="_blank" style="color: #60a5fa; text-decoration: none;">📹 Watch Guide</a>
+    tooltipHTML += `<div style="margin-bottom: 12px; display: flex; justify-content: center;">
+      <div class="tooltip-video-link" data-video-url="${videoLink}" data-collectible-name="${name.replace(/"/g, '&quot;')}" style="width: 64px; height: 64px; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border-radius: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 12px rgba(0,0,0,0.4); user-select: none;">
+        <span style="font-size: 32px; margin-left: 4px;">▶</span>
+      </div>
     </div>`;
   }
-  
+
   // Add collection status
   const isCollected = collectedItems.has(getCollectibleId(collectible));
-  tooltipHTML += `<div style="font-size: 10px; color: ${isCollected ? '#22c55e' : '#ef4444'}; margin-top: 4px;">
+  tooltipHTML += `<div style="font-size: 15px; color: ${isCollected ? '#22c55e' : '#ef4444'}; margin-top: 6px;">
     ${isCollected ? '✓ Collected' : '⚫ Not Collected'}
   </div>`;
-  
+
   tooltip.innerHTML = tooltipHTML;
   tooltip.style.display = 'block';
-  
-  // Position tooltip (avoid going off-screen)
-  const tooltipWidth = tooltip.offsetWidth;
-  const tooltipHeight = tooltip.offsetHeight;
-  
-  let posX = x + 20;
-  let posY = y + 20;
-  
-  if (posX + tooltipWidth > window.innerWidth) {
-    posX = x - tooltipWidth - 10;
-  }
-  if (posY + tooltipHeight > window.innerHeight) {
-    posY = y - tooltipHeight - 10;
-  }
-  
-  tooltip.style.left = posX + 'px';
-  tooltip.style.top = posY + 'px';
+
+  // Use position
+  tooltip.style.left = tooltipX + 'px';
+  tooltip.style.top = tooltipY + 'px';
+
+  // Right-click handled by backend click observer + hit-testing
+  // (no need for oncontextmenu handler)
 }
 
-// Hide tooltip
+// Hide tooltip with delay
 function hideTooltip() {
-  if (tooltip) {
-    tooltip.style.display = 'none';
+  // Clear any existing timeout
+  if (tooltipHideTimeout) {
+    clearTimeout(tooltipHideTimeout);
+  }
+
+  // Wait 1 second before hiding
+  tooltipHideTimeout = setTimeout(() => {
+    if (tooltip) {
+      tooltip.style.display = 'none';
+    }
+  }, 1000);
+}
+
+// Cancel pending tooltip hide (when new tooltip appears)
+function cancelTooltipHide() {
+  if (tooltipHideTimeout) {
+    clearTimeout(tooltipHideTimeout);
+    tooltipHideTimeout = null;
   }
 }
 
-// Show interaction hint
-function showInteractionHint() {
-  if (interactionHint) {
-    interactionHint.classList.add('visible');
+// Video player
+let videoPlayerFrame = null;
+let youtubePlayer = null;
+let isYouTubeAPIReady = false;
+let videoCloseHandler = null; // Track close button handler for cleanup
+
+// Load YouTube IFrame API
+function loadYouTubeAPI() {
+  if (window.YT) {
+    isYouTubeAPIReady = true;
+    return;
+  }
+
+  const tag = document.createElement('script');
+  tag.src = 'https://www.youtube.com/iframe_api';
+  const firstScriptTag = document.getElementsByTagName('script')[0];
+  firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+  // API ready callback
+  window.onYouTubeIframeAPIReady = () => {
+    isYouTubeAPIReady = true;
+    console.log('[YouTube] IFrame API loaded');
+  };
+}
+
+function createVideoPlayer() {
+  if (videoPlayerFrame) return videoPlayerFrame;
+
+  videoPlayerFrame = document.createElement('div');
+  videoPlayerFrame.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 900px;
+    height: 600px;
+    background: #000000;
+    border: 3px solid #fbbf24;
+    border-radius: 12px;
+    z-index: 99999;
+    display: none;
+    padding: 24px;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.85), 0 12px 48px rgba(0, 0, 0, 0.9);
+  `;
+
+  document.body.appendChild(videoPlayerFrame);
+  return videoPlayerFrame;
+}
+
+async function showVideoPlayer(videoUrl, collectibleName) {
+  console.log('[Video Player] Opening video player');
+
+  if (!videoPlayerFrame) {
+    createVideoPlayer();
+  }
+
+  // Disable click-through so user can interact with video player
+  console.log('[Video Player] Disabling click-through');
+  isClickThroughEnabled = false;
+  await ipcRenderer.invoke('set-click-through', false);
+  console.log('[Video Player] Click-through disabled, isClickThroughEnabled =', isClickThroughEnabled);
+
+  // Extract YouTube video ID and timestamp
+  const youtubeMatch = videoUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?]+)/);
+
+  if (!youtubeMatch) {
+    console.error('[Video Player] Invalid YouTube URL:', videoUrl);
+    return;
+  }
+
+  const videoId = youtubeMatch[1];
+
+  // Extract start time parameter (t=120s or t=2m30s format)
+  let startSeconds = 0;
+  const timeMatch = videoUrl.match(/[?&]t=(\d+)([hms]?)/);
+  if (timeMatch) {
+    const value = parseInt(timeMatch[1]);
+    const unit = timeMatch[2] || 's'; // Default to seconds if no unit
+
+    if (unit === 'h') {
+      startSeconds = value * 3600;
+    } else if (unit === 'm') {
+      startSeconds = value * 60;
+    } else {
+      startSeconds = value; // seconds
+    }
+  }
+
+  // Also check for #t= format
+  const hashTimeMatch = videoUrl.match(/#t=(\d+)/);
+  if (hashTimeMatch) {
+    startSeconds = parseInt(hashTimeMatch[1]);
+  }
+
+  if (startSeconds > 0) {
+    console.log(`[Video Player] Starting video at ${startSeconds} seconds (${Math.floor(startSeconds / 60)}:${String(startSeconds % 60).padStart(2, '0')})`);
+  }
+
+  // Create player container HTML
+  videoPlayerFrame.innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h3 style="margin: 0; color: #fbbf24; font-size: 24px; font-weight: bold;">${collectibleName} - Video Guide</h3>
+      <button class="video-close-button" style="background: #ef4444; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 18px; font-weight: bold; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.5); transition: all 0.2s;">✕ Close</button>
+    </div>
+    <div id="youtube-player" style="width: 100%; height: 520px; border-radius: 8px; overflow: hidden;"></div>
+  `;
+
+  videoPlayerFrame.style.display = 'block';
+
+  // Remove old event listener if it exists
+  const closeButton = videoPlayerFrame.querySelector('.video-close-button');
+  if (closeButton && videoCloseHandler) {
+    closeButton.removeEventListener('click', videoCloseHandler);
+  }
+
+  // Add DOM event listener for close button (works when click-through disabled)
+  videoCloseHandler = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    console.log('[Video Player] Close button clicked via DOM');
+    closeVideoPlayer();
+  };
+
+  if (closeButton) {
+    closeButton.addEventListener('click', videoCloseHandler);
+  }
+
+  // Wait for API to be ready, then create player
+  const initPlayer = () => {
+    if (window.YT && window.YT.Player) {
+      // Destroy existing player if any
+      if (youtubePlayer) {
+        youtubePlayer.destroy();
+      }
+
+      // Create new YouTube player using IFrame API
+      youtubePlayer = new YT.Player('youtube-player', {
+        height: '520',
+        width: '100%',
+        videoId: videoId,
+        playerVars: {
+          autoplay: 1,
+          modestbranding: 1,
+          rel: 0,
+          start: startSeconds, // Start video at specified timestamp
+          // Additional parameters to try bypassing embed restrictions
+          origin: window.location.origin,
+          enablejsapi: 1,
+          widgetid: 1
+        },
+        host: 'https://www.youtube-nocookie.com', // Use nocookie domain (sometimes bypasses restrictions)
+        events: {
+          onError: (event) => {
+            console.error('[YouTube Player] Error code:', event.data);
+
+            // Error 150/101/100 = embedding disabled by video owner
+            if (event.data === 150 || event.data === 101 || event.data === 100) {
+              // Fallback: open in external browser (preserve timestamp)
+              let fallbackUrl = `https://www.youtube.com/watch?v=${videoId}`;
+              if (startSeconds > 0) {
+                fallbackUrl += `&t=${startSeconds}s`;
+              }
+              console.log('[YouTube Player] Embedding disabled, opening in browser:', fallbackUrl);
+
+              // Show user-friendly message
+              const playerContainer = document.getElementById('youtube-player');
+              if (playerContainer) {
+                playerContainer.innerHTML = `
+                  <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; background: #1a1a1a; color: white; text-align: center; padding: 40px;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">🎥</div>
+                    <div style="font-size: 20px; margin-bottom: 30px;">This video cannot be embedded</div>
+                    <div style="font-size: 16px; color: #9ca3af; margin-bottom: 30px;">The video owner has disabled embedding.<br>Opening in your default browser...</div>
+                  </div>
+                `;
+              }
+
+              // Open in external browser after 2 seconds
+              setTimeout(() => {
+                shell.openExternal(fallbackUrl);
+                closeVideoPlayer();
+              }, 2000);
+            }
+          }
+        }
+      });
+    } else {
+      // API not ready yet, wait
+      setTimeout(initPlayer, 100);
+    }
+  };
+
+  initPlayer();
+}
+
+async function closeVideoPlayer() {
+  console.log('[Video Player] Closing video player');
+
+  if (videoPlayerFrame) {
+    videoPlayerFrame.style.display = 'none';
+
+    // Destroy YouTube player instance
+    if (youtubePlayer) {
+      youtubePlayer.destroy();
+      youtubePlayer = null;
+    }
+
+    videoPlayerFrame.innerHTML = '';
+
+    // Remove event listener
+    if (videoCloseHandler) {
+      const closeButton = videoPlayerFrame.querySelector('.video-close-button');
+      if (closeButton) {
+        closeButton.removeEventListener('click', videoCloseHandler);
+      }
+      videoCloseHandler = null;
+    }
+
+    // Re-enable click-through (video player closed)
+    console.log('[Video Player] Re-enabling click-through');
+    isClickThroughEnabled = true;
+    await ipcRenderer.invoke('set-click-through', true);
+    console.log('[Video Player] Click-through re-enabled, isClickThroughEnabled =', isClickThroughEnabled);
   }
 }
 
-// Hide interaction hint
-function hideInteractionHint() {
-  if (interactionHint) {
-    interactionHint.classList.remove('visible');
+// Video link click handler (no longer used - using hit-testing instead)
+// Make global for backwards compatibility
+window.closeVideoPlayer = closeVideoPlayer;
+
+// Hit-testing functions for UI elements (overlay is always click-through)
+
+function isClickOnTooltipVideoLink(x, y) {
+  /**Check if click is on tooltip video link*/
+  if (!tooltip || tooltip.style.display === 'none') {
+    return null;
   }
+
+  const videoLink = tooltip.querySelector('.tooltip-video-link');
+  if (!videoLink) {
+    return null;
+  }
+
+  const rect = videoLink.getBoundingClientRect();
+  if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+    return {
+      videoUrl: videoLink.dataset.videoUrl,
+      collectibleName: videoLink.dataset.collectibleName
+    };
+  }
+
+  return null;
 }
 
-// Check if point is inside collectible
-function isPointInCollectible(x, y, collectible) {
-  const distance = Math.sqrt(
-    Math.pow(x - collectible.x, 2) + Math.pow(y - collectible.y, 2)
-  );
-  return distance <= COLLECTIBLE_SIZE.glowRadius;
+function isClickOnVideoCloseButton(x, y) {
+  /**Check if click is on video player close button*/
+  if (!videoPlayerFrame || videoPlayerFrame.style.display === 'none') {
+    return false;
+  }
+
+  const closeButton = videoPlayerFrame.querySelector('.video-close-button');
+  if (!closeButton) {
+    return false;
+  }
+
+  const rect = closeButton.getBoundingClientRect();
+  return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
 }
 
-// Find collectible at coordinates
-function findCollectibleAt(x, y) {
-  return currentCollectibles.find(col => 
-    isPointInCollectible(x, y, col)
-  );
-}
+// Hit-testing functions for UI elements (see below: isClickOnTooltipVideoLink, isClickOnVideoCloseButton, findCollectibleAt)
 
-// Get unique ID for collectible
+// Get unique ID for collectible using stable lat/lng coordinates
 function getCollectibleId(collectible) {
-  return `${collectible.type}-${collectible.name}-${collectible.x}-${collectible.y}`;
+  // Use lat/lng as stable identifier (rounded to avoid floating point issues)
+  const lat = collectible.lat ? collectible.lat.toFixed(4) : '0';
+  const lng = collectible.lng ? collectible.lng.toFixed(4) : '0';
+  return `${collectible.type}-${lat}-${lng}`;
+}
+
+// Load collected items from localStorage
+function loadCollectedItems() {
+  try {
+    const saved = localStorage.getItem('rdo-collected-items');
+    if (saved) {
+      const items = JSON.parse(saved);
+      return new Set(items);
+    }
+  } catch (e) {
+    console.error('Failed to load collected items:', e);
+  }
+  return new Set();
+}
+
+// Save collected items to localStorage
+function saveCollectedItems() {
+  try {
+    const items = Array.from(collectedItems);
+    localStorage.setItem('rdo-collected-items', JSON.stringify(items));
+  } catch (e) {
+    console.error('Failed to save collected items:', e);
+  }
 }
 
 // Toggle collected status
 function toggleCollected(collectible) {
   const id = getCollectibleId(collectible);
-  
+
   if (collectedItems.has(id)) {
     collectedItems.delete(id);
-    console.log(`Marked ${collectible.name} as NOT collected`);
+    console.log(`Marked ${collectible.name} as NOT collected (${collectible.lat}, ${collectible.lng})`);
   } else {
     collectedItems.add(id);
-    console.log(`Marked ${collectible.name} as collected`);
+    console.log(`Marked ${collectible.name} as collected (${collectible.lat}, ${collectible.lng})`);
   }
-  
+
+  // Save to localStorage
+  saveCollectedItems();
+
   // Update collected display
   updateCollectedDisplay();
-  
+
   // Redraw to reflect changes
   drawOverlay();
 }
@@ -236,39 +536,7 @@ function updateCollectedDisplay() {
   }
 }
 
-// Mouse event handlers
-function handleMouseMove(event) {
-  const rect = canvas.getBoundingClientRect();
-  const x = event.clientX - rect.left;
-  const y = event.clientY - rect.top;
-  
-  const collectible = findCollectibleAt(x, y);
-  
-  if (collectible && collectible !== hoveredCollectible) {
-    hoveredCollectible = collectible;
-    showTooltip(collectible, event.clientX, event.clientY);
-    canvas.style.cursor = 'pointer';
-    showInteractionHint();
-  } else if (!collectible && hoveredCollectible) {
-    hoveredCollectible = null;
-    hideTooltip();
-    canvas.style.cursor = 'default';
-    hideInteractionHint();
-  }
-}
-
-function handleContextMenu(event) {
-  event.preventDefault();
-  
-  const rect = canvas.getBoundingClientRect();
-  const x = event.clientX - rect.left;
-  const y = event.clientY - rect.top;
-  
-  const collectible = findCollectibleAt(x, y);
-  if (collectible) {
-    toggleCollected(collectible);
-  }
-}
+// Canvas mouse event handlers removed - backend observes clicks globally, frontend does hit-testing
 
 // Resize canvas to window size
 function resizeCanvas() {
@@ -376,34 +644,258 @@ function connectWebSocket() {
 
   // Match update from backend
   socket.on('match_update', handleMatchUpdate);
+
+  // Window focus changes from backend (sent immediately on connect, then broadcast every 100ms)
+  socket.on('window-focus-changed', (data) => {
+    const newRdr2State = data.is_rdr2_active;
+
+    // Backend always broadcasts, but frontend only updates DOM if state actually changed
+    if (newRdr2State === isRdr2Active) {
+      return; // No state change, skip DOM update
+    }
+
+    isRdr2Active = newRdr2State;
+
+    if (isRdr2Active) {
+      // RDR2 is active - show overlay window and content
+      ipcRenderer.send('set-overlay-visibility', true);
+
+      if (overlayVisible) {
+        canvas.style.display = 'block';
+        statusBar.classList.add('visible');
+        hotkeys.classList.add('visible');
+      } else {
+        canvas.style.display = 'none';
+      }
+    } else {
+      // RDR2 not active - hide overlay window completely
+      // UNLESS video player is open (user is interacting with overlay)
+      if (!isClickThroughEnabled) {
+        console.log('[Focus] RDR2 inactive but video player open - keeping overlay visible');
+        return; // Keep overlay visible when video player or menus are open
+      }
+
+      ipcRenderer.send('set-overlay-visibility', false);
+      canvas.style.display = 'none';
+      statusBar.classList.remove('visible');
+      hotkeys.classList.remove('visible');
+      hideTooltip();
+      closeVideoPlayer();
+    }
+  });
+
+  // Global mouse click observation from backend
+  socket.on('mouse-clicked', (data) => {
+    // Only process backend click events when click-through is enabled
+    // When video player or menus are open, DOM handles clicks naturally
+    if (!isClickThroughEnabled) {
+      console.log('[Click Observer] Ignoring backend click - click-through disabled (video player/menu open)');
+      return;
+    }
+
+    const { x, y, button } = data;
+    console.log(`[Click Observer] Processing backend click at (${x}, ${y}), button: ${button}`);
+
+    // Hit-test priority order: Video controls > Tooltip elements > Collectible markers
+    // (overlay is click-through when enabled, clicks also go to game)
+
+    // 1. Check video player close button (highest priority)
+    if (isClickOnVideoCloseButton(x, y)) {
+      closeVideoPlayer();
+      return; // Handled
+    }
+
+    // 2. Check tooltip video link
+    const videoLinkData = isClickOnTooltipVideoLink(x, y);
+    if (videoLinkData && button === 'left') {
+      showVideoPlayer(videoLinkData.videoUrl, videoLinkData.collectibleName);
+      return; // Handled
+    }
+
+    // 3. Check collectible markers
+    const collectible = findCollectibleAt(x, y);
+    if (collectible && button === 'right') {
+      // Right-click toggles collected status
+      toggleCollected(collectible);
+      return; // Handled
+    }
+
+    // If no UI element hit, click naturally goes to game (overlay is click-through)
+    // This includes left-clicks on collectibles (useful for gameplay)
+  });
+}
+
+// Cursor polling for tooltips (overlay is always click-through)
+let cursorPollingInterval = null;
+let currentHoveredCollectible = null;
+
+function findCollectibleAt(x, y) {
+  /**Hit-test collectibles at cursor position*/
+  if (!currentCollectibles || currentCollectibles.length === 0) {
+    return null;
+  }
+
+  for (const collectible of currentCollectibles) {
+    const dx = x - collectible.x;
+    const dy = y - collectible.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance <= COLLECTIBLE_SIZE.hitRadius) {
+      return collectible;
+    }
+  }
+
+  return null;
+}
+
+// Click-through toggling removed - overlay is now always click-through
+// Backend observes clicks via global hooks and emits to frontend for hit-testing
+
+function isCursorOverTooltip(x, y) {
+  /**Check if cursor is over the tooltip*/
+  if (!tooltip || tooltip.style.display === 'none') {
+    return false;
+  }
+
+  const rect = tooltip.getBoundingClientRect();
+  return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+}
+
+async function pollCursor() {
+  /**Poll cursor position for tooltip display - overlay is always click-through*/
+  if (!isRdr2Active || !overlayVisible) {
+    // RDR2 not active or overlay hidden - hide tooltip
+    if (currentHoveredCollectible) {
+      currentHoveredCollectible = null;
+      hideTooltip();
+    }
+    return;
+  }
+
+  try {
+    const cursorPos = await ipcRenderer.invoke('get-cursor-position');
+    const hoveredItem = findCollectibleAt(cursorPos.x, cursorPos.y);
+    const overTooltip = isCursorOverTooltip(cursorPos.x, cursorPos.y);
+
+    // Check if hover state changed
+    if (hoveredItem !== currentHoveredCollectible) {
+      if (hoveredItem) {
+        // Started hovering a collectible - show tooltip near the marker, not cursor
+        currentHoveredCollectible = hoveredItem;
+        const tooltipPos = calculateTooltipPosition(hoveredItem.x, hoveredItem.y);
+        showTooltip(hoveredItem, tooltipPos.x, tooltipPos.y);
+      } else if (!overTooltip) {
+        // Stopped hovering and NOT over tooltip - hide it
+        currentHoveredCollectible = null;
+        hideTooltip();
+      }
+      // If over tooltip but not over collectible, keep tooltip visible
+    }
+  } catch (error) {
+    console.error('[Cursor Poll] Error:', error);
+  }
+}
+
+function calculateTooltipPosition(x, y) {
+  /**Calculate tooltip position avoiding screen edges*/
+  const screenWidth = 1920;
+  const screenHeight = 1080;
+  const tooltipWidth = 450;
+  const tooltipHeight = 300;
+  const offsetX = 20;
+  const offsetY = 20;
+
+  let posX = x + offsetX;
+  let posY = y + offsetY;
+
+  // Avoid right edge
+  if (posX + tooltipWidth > screenWidth) {
+    posX = x - tooltipWidth - 10;
+  }
+
+  // Avoid bottom edge
+  if (posY + tooltipHeight > screenHeight) {
+    posY = y - tooltipHeight - 10;
+  }
+
+  return { x: posX, y: posY };
+}
+
+function startCursorPolling() {
+  /**Start polling cursor at 60fps (16ms interval) for responsive click-through*/
+  if (cursorPollingInterval) {
+    return; // Already polling
+  }
+
+  console.log('[Cursor Poll] Starting at 60fps (16ms interval)');
+  cursorPollingInterval = setInterval(pollCursor, 16);
+}
+
+function stopCursorPolling() {
+  /**Stop cursor polling*/
+  if (cursorPollingInterval) {
+    clearInterval(cursorPollingInterval);
+    cursorPollingInterval = null;
+    console.log('[Cursor Poll] Stopped');
+  }
 }
 
 // Initialize
 async function initialize() {
-  console.log('Initializing overlay...');
-  console.log('Backend URL:', BACKEND_URL);
+  console.log('[Initialize] Starting initialization...');
+  console.log('[Initialize] Backend URL:', BACKEND_URL);
+  console.log('[Initialize] Initial state - overlayVisible:', overlayVisible, 'isRdr2Active:', isRdr2Active);
   updateStatus('Connecting to backend...', 'inactive');
+
+  // Load YouTube IFrame API for video player
+  loadYouTubeAPI();
 
   // Create tooltip
   createTooltip();
 
-  // Enable pointer events on canvas for interaction
-  canvas.style.pointerEvents = 'auto';
+  // Canvas is always click-through (pointer events not needed)
+  // Clicks are observed by backend global hooks and emitted via WebSocket
+  canvas.style.pointerEvents = 'none';
 
-  // Add event listeners
-  canvas.addEventListener('mousemove', handleMouseMove);
-  canvas.addEventListener('contextmenu', handleContextMenu);
+  // DON'T set canvas display here - let window-focus handler decide based on actual RDR2 state
+  console.log('[Initialize] Waiting for RDR2 state from backend...');
+  console.log('[Initialize] Canvas initial display value:', canvas.style.display);
 
-  // Show interaction hint when tracking starts
-  canvas.addEventListener('mouseenter', showInteractionHint);
-  canvas.addEventListener('mouseleave', hideInteractionHint);
-
-  // Show UI immediately
+  // Show status UI (but not canvas yet)
+  console.log('[Initialize] Showing status bar and hotkeys');
   statusBar.classList.add('visible');
   hotkeys.classList.add('visible');
 
-  // Connect to WebSocket (handles reconnection automatically)
+  // Connect to WebSocket (will immediately receive RDR2 state on connect)
+  console.log('[Initialize] Connecting to WebSocket...');
   connectWebSocket();
+
+  // Update collected items display with persisted count
+  updateCollectedDisplay();
+  console.log(`Loaded ${collectedItems.size} collected items from storage`);
+
+  // Start cursor polling for hover detection (20fps = 50ms interval)
+  startCursorPolling();
+
+  // Ctrl+Shift+C to clear all collected items
+  window.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+      if (collectedItems.size > 0) {
+        const count = collectedItems.size;
+        collectedItems.clear();
+        saveCollectedItems();
+        updateCollectedDisplay();
+        drawOverlay();
+        console.log(`Cleared ${count} collected items`);
+        updateStatus(`Cleared ${count} collected items`, 'active');
+        setTimeout(() => {
+          if (!isTracking) {
+            updateStatus('Ready - Press F9 to align', 'inactive');
+          }
+        }, 2000);
+      }
+    }
+  });
 }
 
 // Update status display
@@ -532,68 +1024,33 @@ function drawOverlay() {
   for (const col of currentCollectibles) {
     const isCollected = collectedItems.has(getCollectibleId(col));
     const isHovered = hoveredCollectible === col;
-    
-    // Skip drawing collected items with very low opacity
+
+    // Set opacity: 60% for collected, normal for uncollected
     if (isCollected) {
-      ctx.globalAlpha = 0.2; // Very transparent for collected items
-    } else if (isHovered) {
-      ctx.globalAlpha = 1.0; // Full opacity for hovered items
+      ctx.globalAlpha = 0.6 * overlayOpacity; // 60% alpha for collected items
     } else {
       ctx.globalAlpha = overlayOpacity; // Normal opacity
     }
-    
-    const color = TYPE_COLORS[col.type] || { r: 200, g: 200, b: 200 };
-    
+
     // Ensure coordinates are valid
-    if (typeof col.x !== 'number' || typeof col.y !== 'number' || 
+    if (typeof col.x !== 'number' || typeof col.y !== 'number' ||
         col.x < 0 || col.y < 0 || col.x > canvas.width || col.y > canvas.height) {
       console.warn(`Invalid coordinates for ${col.type}: (${col.x}, ${col.y})`);
       continue;
     }
-    
-    // Draw glow effect (subtle outer glow) - only for non-collected items
-    if (!isCollected) {
-      ctx.beginPath();
-      ctx.arc(col.x, col.y, COLLECTIBLE_SIZE.glowRadius, 0, 2 * Math.PI);
-      ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${isHovered ? 0.5 : 0.3})`;
-      ctx.fill();
-    }
-    
-    // Draw outer circle (colored) - 20px diameter
-    ctx.beginPath();
-    ctx.arc(col.x, col.y, COLLECTIBLE_SIZE.outerRadius, 0, 2 * Math.PI);
-    ctx.fillStyle = `rgba(${color.r}, ${color.g}, ${color.b}, ${isCollected ? 0.3 : 0.9})`;
-    ctx.fill();
-    
-    // Draw inner circle (white center) - 8px diameter
-    if (!isCollected) {
-      ctx.beginPath();
-      ctx.arc(col.x, col.y, COLLECTIBLE_SIZE.innerRadius, 0, 2 * Math.PI);
-      ctx.fillStyle = 'rgba(255, 255, 255, 1.0)';
-      ctx.fill();
-    }
-    
-    // Draw outline for better visibility
-    ctx.beginPath();
-    ctx.arc(col.x, col.y, COLLECTIBLE_SIZE.outerRadius, 0, 2 * Math.PI);
-    ctx.strokeStyle = isCollected ? 
-      `rgba(${color.r}, ${color.g}, ${color.b}, 0.3)` : 
-      `rgba(255, 255, 255, 0.8)`;
-    ctx.lineWidth = isHovered ? 2.5 : 1.5;
-    ctx.stroke();
-    
-    // Draw cross for collected items
-    if (isCollected) {
-      ctx.strokeStyle = `rgba(${color.r}, ${color.g}, ${color.b}, 0.6)`;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(col.x - 6, col.y - 6);
-      ctx.lineTo(col.x + 6, col.y + 6);
-      ctx.moveTo(col.x + 6, col.y - 6);
-      ctx.lineTo(col.x - 6, col.y + 6);
-      ctx.stroke();
-    }
-    
+
+    // Draw emoji icon (simple, no extra decorations)
+    const icon = TYPE_ICONS[col.type] || '📍';
+    ctx.save();
+    ctx.font = '30px Arial';  // Larger font for 3x size (48px)
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // Add subtle shadow for better visibility
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+    ctx.shadowBlur = 4;
+    ctx.fillText(icon, col.x, col.y);
+    ctx.restore();
+
     drawnCount++;
   }
   
@@ -612,7 +1069,7 @@ async function refreshData() {
     if (response.data.success) {
       updateStatus('Ready - Press F9 to align', 'inactive');
       currentCollectibles = [];
-      collectedItems.clear(); // Clear collected items on refresh
+      // Don't clear collected items on refresh - they persist
       updateCollectedDisplay();
       isTracking = false;
       drawOverlay();
@@ -638,12 +1095,17 @@ ipcRenderer.on('start-alignment', () => {
 ipcRenderer.on('show-overlay', () => {
   overlayVisible = true;
   drawOverlay();
-  statusBar.classList.add('visible');
-  hotkeys.classList.add('visible');
+  // Only show UI elements if RDR2 is actually active
+  if (isRdr2Active) {
+    canvas.style.display = 'block';
+    statusBar.classList.add('visible');
+    hotkeys.classList.add('visible');
+  }
 });
 
 ipcRenderer.on('hide-overlay', () => {
   overlayVisible = false;
+  canvas.style.display = 'none';
   drawOverlay();
   statusBar.classList.remove('visible');
   hotkeys.classList.remove('visible');

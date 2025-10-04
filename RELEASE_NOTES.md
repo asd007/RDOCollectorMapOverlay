@@ -1,100 +1,91 @@
 # Release Notes
 
-## [1.0.0] - TBD
+## [1.0.0] - 2025-01-04
 
-### Initial Release
+### Fellow Collectors - The Grind Just Got Easier
 
-First public release of RDO Map Overlay with full feature set.
+**The situation:** Madam Nazar wants complete sets. Every day. Coins scattered from Annesburg to Blackwater. Arrowheads buried where God forgot. Tarot Cards hidden in every dusty saloon from here to Tumbleweed. And you? You're squinting at hand-drawn maps, scribbling notes on scraps of paper, trying to remember which creekbed you already checked. Other collectors are out there too, racing you to every site. Your saddlebags are half-full, your patience worn thin.
 
-#### Features
+**The solution:** One map. Your map. Press **M** and see every collectible Madam Nazar's after, marked clear as day. Pan around the frontier, plan your route, mark what you've already collected. No more juggling papers, no more wondering if that's today's locations or last week's. Just ride out and collect.
 
-**Core Functionality:**
-- Automatic map position detection using computer vision (AKAZE features)
-- Real-time collectible tracking with 5fps continuous capture
-- Integration with Joan Ropke's Collectors Map API for daily cycles
-- Transparent overlay window with zero-configuration setup
+**What this does:** Marks today's collectibles right on your in-game map. Open your map, see the locations, plan your route. Simple as that.
 
-**Computer Vision:**
-- Multi-scale cascade matcher (25% → 50% → 70%) for speed/accuracy balance
-- Custom image preprocessing pipeline (posterization + CLAHE + custom LUT)
-- Spatial distribution validation for robust inlier selection
-- Windows Graphics Capture API for clean game capture
+---
 
-**User Experience:**
-- One-click installer (no Python/Node.js required)
-- Hotkey controls (F9/F8/F7/F6/Ctrl+Q)
-- Interactive collectible markers with hover tooltips
-- Right-click menu to mark collectibles as collected
-- Adjustable opacity levels (30%/50%/70%/90%)
-- Status bar with connection state, FPS, and match quality
+**Breaking character for a second:** Those "hand-drawn maps" and "scribbled notes"? That's **[Jean Ropke's RDR2 Collectors Map](https://jeanropke.github.io/RDR2CollectorsMap/)**, and it's the foundation this entire overlay is built on. Jean has been maintaining accurate daily cycle data, collectible locations, and video guides for YEARS, completely free. This tool wouldn't exist without that work. All this overlay does is bring Jean's data into your in-game map so you don't have to alt-tab.
 
-**Performance:**
-- ~200ms median matching time (functional, not yet real-time)
-- Test suite: 100% success rate with 0.0px error on controlled screenshots
-- Real-world usage: Position accuracy sufficient for collectible finding, not pixel-perfect
-- ~500MB RAM usage, ~5-10% CPU
-- 5fps tracking (adequate for walking/riding, may lag behind fast travel)
+---
 
-**Developer Features:**
-- Comprehensive test suite (synthetic + real gameplay)
-- GitHub Actions CI/CD with automated testing
-- Dynamic port allocation (no hardcoded port 5000)
-- Embedded backend (PyInstaller) + frontend (Electron) packaging
-- Git LFS for large map file management
+### What You Get
 
-#### Technical Details
+**🗺️ Jean Ropke's Map, In Your Game Map**
+- All of today's active collectibles from [Jean Ropke's legendary map](https://jeanropke.github.io/RDR2CollectorsMap/) overlaid on your in-game map (press M)
+- Daily cycle updates automatically (today's spawns, not yesterday's)
+- Auto-tracking: Pan and zoom your map - overlay markers stay synced to the map view
 
-**Backend:**
-- Python 3.10+ with OpenCV
-- Flask + Flask-SocketIO for REST API + WebSocket push updates
-- AKAZE binary descriptors with BFMatcher (faster than FLANN)
-- Cascade scale matching with confidence thresholds
+**✨ Actually Useful Features**
+- **Hover tooltips**: See what you're collecting without clicking
+- **Video guides**: Click play button to watch "where the hell is this arrowhead" videos
+- **Collection tracking**: Right-click to mark collected, remembers between sessions
+- **Smart opacity**: F7 cycles through transparencies, F8 hides completely
+- **Click-through**: All clicks go to game (except when video player is open)
 
-**Frontend:**
-- Electron 27 with HTML5 Canvas rendering
-- Socket.IO client for real-time viewport/collectible updates
-- Dynamic backend port discovery via IPC
+**💪 Built For Collectors**
+- Single-monitor friendly (finally!)
+- Auto-tracking: Pan your map, overlay updates automatically
+- Smooth 5fps position sync (imperceptible while viewing map)
+- Works anywhere the in-game map works
+- 1920×1080 resolution
 
-**Testing:**
-- 15 synthetic test cases (100% pass, 1.08px mean error)
-- 9 real gameplay test cases (100% pass, 0.0px error)
-- Automated CI validation on pull requests
+### Quick Start
 
-#### Known Issues
+1. Download installer from [Releases](https://github.com/asd007/RDOCollectorMapOverlay/releases)
+2. Run it (Windows might warn - click "Run anyway")
+3. Launch RDO in Windowed Fullscreen
+4. **Press M** to open your in-game map - collectible markers appear overlaid on the map
+5. Pan and zoom your map to explore - overlay stays synced
+6. Plan your route, close map, go collect, sell complete sets to Madam Nazar, get rich
 
-**Performance & Accuracy:**
-- **Position Drift**: Markers may drift over time, requiring periodic F9 re-sync
-- **Matching Speed**: ~200ms is functional but not truly real-time (goal: <100ms)
-- **Tracking Lag**: 5fps may not keep up with fast movement or fast travel
-- **Pixel Accuracy**: Markers are close but not pixel-perfect (work in progress)
+**Hotkeys:** F8=hide | F7=opacity | F6=refresh data | Ctrl+Q=close
 
-**Technical Limitations:**
-- **Resolution**: Currently supports 1920×1080 resolution only
-- **Window Mode**: Requires Windowed Fullscreen (not Exclusive Fullscreen)
-- **Interior Matching**: F9 sync may fail in buildings/dense interiors
-- **Single Monitor**: Designed for primary monitor only
+---
 
-**Product Vision:** The goal is pixel-perfect, real-time tracking. Current version is a meaningful improvement over alt-tabbing to websites, especially for single-screen users, but there's room for improvement.
+### This Is v1.0 - There's Work To Do
 
-#### Installation
+This release is **functional and useful**, but not perfect. Map tracking is smooth while viewing. 1920×1080 only right now.
 
-Download `RDO-Map-Overlay-Setup.exe` from [Releases](https://github.com/asd007/RDOCollectorMapOverlay/releases) and run the installer.
+**Feedback is gold.** If something breaks, feels clunky, or you have ideas - open an issue on [GitHub](https://github.com/asd007/RDOCollectorMapOverlay/issues). This tool gets better with your input.
 
-**Requirements:**
-- Windows 10/11 (64-bit)
-- Red Dead Online
-- 4GB RAM minimum
-- Internet connection (for collectible data)
+**Known limitations:**
+- Resolution: 1920×1080 only
+- Window mode: Requires Windowed Fullscreen
+- Map view: Works on the full in-game map (M), not minimap or radar
+- Performance: ~500MB RAM, ~5-10% CPU (similar to Discord)
 
-#### Contributors
+---
 
-- alexandru.clontea - Initial implementation
+### Built With
+- [OpenCV](https://opencv.org/) - Computer vision magic
+- [Electron](https://www.electronjs.org/) - Desktop framework
+- [windows-capture](https://github.com/NiiightmareXD/windows-capture) - Game capture
+- RDR2 HQ Map (Nexus Mods) - Reference map for matching
 
-#### Credits
+**Special Thanks:**
+- The RDO collecting community for testing and feedback
+- Rockstar Games for creating Red Dead Online
 
-- HQ Map: RDR2 HQ Map from Nexus Mods
-- Collectible data: [Jean Ropke's RDR2 Collectors Map](https://jeanropke.github.io/RDR2CollectorsMap/)
-- Computer vision: OpenCV Project
+---
+
+### Installation
+
+1. Download `RDO-Map-Overlay-Setup.exe` from [Releases](https://github.com/asd007/RDOCollectorMapOverlay/releases) (~150MB)
+2. Run installer (Windows may warn - click "More info" → "Run anyway")
+3. First launch: Accept EULA, wait ~30 seconds for setup
+4. In-game: Set to Windowed Fullscreen, press **M** to open map - collectible markers appear automatically
+
+**Requirements:** Windows 10/11 (64-bit), 4GB RAM, 1920×1080 resolution, internet connection
+
+**Uninstall:** Windows "Add or Remove Programs"
 
 ---
 
