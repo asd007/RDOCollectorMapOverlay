@@ -92,24 +92,10 @@ async function startBackend() {
     }
   });
 
-  // Wait for backend to be ready (2 minute timeout for low-end systems)
-  console.log('[Backend] Waiting for backend to initialize (this may take 10-60 seconds, up to 2 minutes on low-end systems)...');
-  for (let i = 0; i < 120; i++) {
-    await new Promise(r => setTimeout(r, 1000));
-
-    try {
-      await axios.get(`http://127.0.0.1:${backendPort}/status`, { timeout: 3000 });
-      console.log(`[Backend] Ready on port ${backendPort}`);
-      return true;
-    } catch (e) {
-      // Not ready yet, continue waiting
-      if (i > 0 && i % 10 === 0) {
-        console.log(`[Backend] Still initializing... (${i}s elapsed)`);
-      }
-    }
-  }
-
-  throw new Error('Backend failed to start within 2 minutes. Check logs for details.');
+  // Backend started in background - UI will show connection status
+  console.log('[Backend] Backend started. UI will connect when ready.');
+  console.log('[Backend] Initialization may take 10-60 seconds (up to 2 minutes on low-end systems).');
+  return true;
 }
 
 function stopBackend() {
@@ -247,9 +233,6 @@ app.whenReady().then(async () => {
     const firstLaunchMarker = path.join(app.getPath('userData'), '.first-launch-complete');
     const isFirstLaunch = !fs.existsSync(firstLaunchMarker);
 
-    // Start backend and wait for it to be ready
-    await startBackend();
-
     // Show disclaimer on first launch
     if (isFirstLaunch) {
       await showDisclaimerWindow();
@@ -257,8 +240,15 @@ app.whenReady().then(async () => {
       fs.writeFileSync(firstLaunchMarker, new Date().toISOString());
     }
 
-    // Create main overlay window
+    // Create main overlay window (show immediately for visual feedback)
     createWindow();
+
+    // Start backend in background (fire-and-forget)
+    // UI will show "Connecting..." until backend is ready
+    startBackend().catch(error => {
+      console.error('[Backend] Failed to start:', error);
+      // UI will show disconnected state - user can retry or check logs
+    });
   } catch (error) {
     console.error('Failed to start application:', error);
     showError('Startup Failed', `RDO Map Overlay could not start:\n\n${error.message}\n\nPlease try restarting the application.`);
