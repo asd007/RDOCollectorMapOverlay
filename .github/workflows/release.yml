@@ -1,0 +1,178 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+      - 'backend-v*'
+      - 'assets-v*'
+
+jobs:
+  build-backend:
+    if: startsWith(github.ref, 'refs/tags/backend-v')
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build backend with PyInstaller
+        run: |
+          pyinstaller app.spec
+
+      - name: Calculate SHA256
+        id: hash
+        shell: powershell
+        run: |
+          $hash = (Get-FileHash -Path "dist\rdo-overlay-backend.exe" -Algorithm SHA256).Hash
+          echo "SHA256=$hash" >> $env:GITHUB_OUTPUT
+          echo "Backend SHA256: $hash"
+
+      - name: Upload backend artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: backend
+          path: dist/rdo-overlay-backend.exe
+
+      - name: Create backend release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/rdo-overlay-backend.exe
+          body: |
+            ## Backend Release
+
+            SHA256: `${{ steps.hash.outputs.SHA256 }}`
+
+            This release contains only the Python backend executable.
+            It will be downloaded automatically by the installer or application.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-app:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Get version from tag
+        id: version
+        shell: bash
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Update package.json version
+        working-directory: frontend
+        shell: powershell
+        run: |
+          $json = Get-Content package.json | ConvertFrom-Json
+          $json.version = "${{ steps.version.outputs.VERSION }}"
+          $json | ConvertTo-Json -Depth 10 | Set-Content package.json
+
+      - name: Build Electron app (web installer only)
+        working-directory: frontend
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npm run build -- --win nsis-web --publish always
+
+      - name: Calculate installer SHA256
+        id: hash
+        shell: powershell
+        working-directory: frontend
+        run: |
+          $webHash = (Get-FileHash -Path "../dist/RDO-Map-Overlay-Setup-Web.exe" -Algorithm SHA256).Hash
+          echo "WEB_SHA256=$webHash" >> $env:GITHUB_OUTPUT
+          echo "Web Installer SHA256: $webHash"
+
+      - name: Generate release notes
+        id: notes
+        shell: bash
+        run: |
+          cat << 'EOF' > release-notes.md
+          ## RDO Map Overlay v${{ steps.version.outputs.VERSION }}
+
+          ### Installation
+
+          **For new users:**
+          1. Download `RDO-Map-Overlay-Setup-Web.exe` (2-3 MB)
+          2. Run the installer - it will download required components
+          3. Launch from Start Menu or Desktop shortcut
+
+          **For existing users:**
+          - The app will auto-update when you launch it
+          - Or download and run the web installer
+
+          ### Download Sizes
+
+          - Initial installer: **2-3 MB**
+          - Auto-updates: **5-10 MB** (only changed files)
+          - First-time setup downloads:
+            - Electron runtime: ~65 MB
+            - Python backend: ~58 MB
+            - Map data: 167 MB (on first use)
+
+          ### Changes in this Release
+
+          _Add your changes here_
+
+          ### Checksums
+
+          Web Installer: `${{ steps.hash.outputs.WEB_SHA256 }}`
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          body_path: release-notes.md
+          files: |
+            ../dist/RDO-Map-Overlay-Setup-Web.exe
+            ../dist/latest.yml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  upload-assets:
+    if: startsWith(github.ref, 'refs/tags/assets-v')
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Package map assets
+        run: |
+          # Assuming map is stored in data/
+          if [ -f "data/rdr2_map_hq.png" ]; then
+            echo "Map file found, calculating hash..."
+            sha256sum data/rdr2_map_hq.png
+          else
+            echo "Warning: Map file not found in data/"
+          fi
+
+      - name: Create assets release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: data/rdr2_map_hq.png
+          body: |
+            ## Asset Release
+
+            This release contains large game assets that are downloaded on demand.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

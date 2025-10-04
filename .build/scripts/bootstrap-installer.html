@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>RDO Map Overlay - Installer</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      color: #333;
+    }
+
+    .installer {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      width: 600px;
+      padding: 40px;
+    }
+
+    h1 {
+      font-size: 28px;
+      margin-bottom: 10px;
+      color: #667eea;
+    }
+
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+
+    .step {
+      display: none;
+      animation: fadeIn 0.3s;
+    }
+
+    .step.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .progress-container {
+      margin: 20px 0;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      width: 0%;
+      transition: width 0.3s;
+    }
+
+    .progress-text {
+      font-size: 13px;
+      color: #666;
+    }
+
+    .download-item {
+      padding: 15px;
+      background: #f5f5f5;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .download-item .name {
+      font-weight: 500;
+    }
+
+    .download-item .size {
+      color: #999;
+      font-size: 13px;
+    }
+
+    .download-item .status {
+      font-size: 12px;
+      padding: 4px 12px;
+      border-radius: 12px;
+      background: #667eea;
+      color: white;
+    }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(90deg, #667eea, #764ba2);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+
+    button:hover {
+      opacity: 0.9;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .install-path {
+      margin: 20px 0;
+    }
+
+    .install-path input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 14px;
+      margin-top: 8px;
+    }
+
+    .error {
+      background: #fee;
+      color: #c33;
+      padding: 15px;
+      border-radius: 6px;
+      margin-top: 20px;
+      font-size: 14px;
+    }
+
+    .success {
+      text-align: center;
+      padding: 40px 0;
+    }
+
+    .success .icon {
+      font-size: 64px;
+      margin-bottom: 20px;
+    }
+
+    .log {
+      background: #f9f9f9;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      padding: 15px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: 'Consolas', monospace;
+      font-size: 12px;
+      color: #666;
+      margin-top: 20px;
+    }
+
+    .log-entry {
+      padding: 2px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="installer">
+    <!-- Step 1: Welcome -->
+    <div class="step active" id="step-welcome">
+      <h1>RDO Map Overlay</h1>
+      <p class="subtitle">Pixel-perfect collectible tracking for Red Dead Online</p>
+
+      <p style="margin: 20px 0; line-height: 1.6;">
+        This installer will download and set up RDO Map Overlay on your computer.
+        Total download size: ~290 MB (120 MB runtime + 167 MB map + 5 MB code)
+      </p>
+
+      <div class="install-path">
+        <label><strong>Installation folder:</strong></label>
+        <input type="text" id="install-path" value="C:\Program Files\RDO Map Overlay" />
+      </div>
+
+      <button onclick="startInstall()">Install</button>
+    </div>
+
+    <!-- Step 2: Downloading -->
+    <div class="step" id="step-download">
+      <h1>Downloading Components</h1>
+      <p class="subtitle">Please wait while we download the necessary files...</p>
+
+      <div class="progress-container">
+        <div class="progress-bar">
+          <div class="progress-fill" id="overall-progress"></div>
+        </div>
+        <div class="progress-text" id="overall-text">Preparing...</div>
+      </div>
+
+      <div id="download-items"></div>
+
+      <div class="log" id="download-log"></div>
+    </div>
+
+    <!-- Step 3: Installing -->
+    <div class="step" id="step-install">
+      <h1>Installing</h1>
+      <p class="subtitle">Extracting files and setting up...</p>
+
+      <div class="progress-container">
+        <div class="progress-bar">
+          <div class="progress-fill" id="install-progress"></div>
+        </div>
+        <div class="progress-text" id="install-text">Installing...</div>
+      </div>
+
+      <div class="log" id="install-log"></div>
+    </div>
+
+    <!-- Step 4: Complete -->
+    <div class="step" id="step-complete">
+      <div class="success">
+        <div class="icon">✓</div>
+        <h1>Installation Complete!</h1>
+        <p class="subtitle">RDO Map Overlay has been successfully installed</p>
+      </div>
+
+      <button onclick="launchApp()">Launch RDO Map Overlay</button>
+      <button onclick="window.close()" style="background: #999; margin-top: 10px;">Close</button>
+    </div>
+
+    <!-- Error State -->
+    <div class="step" id="step-error">
+      <h1>Installation Failed</h1>
+      <p class="subtitle">An error occurred during installation</p>
+
+      <div class="error" id="error-message"></div>
+
+      <button onclick="location.reload()">Retry</button>
+      <button onclick="window.close()" style="background: #999; margin-top: 10px;">Close</button>
+    </div>
+  </div>
+
+  <script>
+    const { ipcRenderer } = require('electron');
+
+    const downloads = [
+      { name: 'Electron Runtime', size: '65 MB', url: 'RUNTIME_URL', file: 'runtime.zip' },
+      { name: 'Backend', size: '58 MB', url: 'BACKEND_URL', file: 'backend.zip' },
+      { name: 'Frontend Code', size: '6 MB', url: 'CODE_URL', file: 'code.zip' }
+    ];
+
+    let installPath = '';
+
+    function showStep(stepId) {
+      document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+      document.getElementById(stepId).classList.add('active');
+    }
+
+    function log(message, logId = 'download-log') {
+      const logEl = document.getElementById(logId);
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      logEl.appendChild(entry);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    async function startInstall() {
+      installPath = document.getElementById('install-path').value;
+      showStep('step-download');
+
+      try {
+        // Create download items UI
+        const container = document.getElementById('download-items');
+        downloads.forEach((item, idx) => {
+          const div = document.createElement('div');
+          div.className = 'download-item';
+          div.innerHTML = `
+            <div>
+              <div class="name">${item.name}</div>
+              <div class="size">${item.size}</div>
+            </div>
+            <div class="status" id="status-${idx}">Waiting...</div>
+          `;
+          container.appendChild(div);
+        });
+
+        // Download each component
+        for (let i = 0; i < downloads.length; i++) {
+          const item = downloads[i];
+          document.getElementById(`status-${i}`).textContent = 'Downloading...';
+          log(`Downloading ${item.name}...`);
+
+          await ipcRenderer.invoke('download-file', {
+            url: item.url,
+            dest: item.file,
+            onProgress: (progress) => {
+              const overall = ((i + progress) / downloads.length) * 100;
+              document.getElementById('overall-progress').style.width = overall + '%';
+              document.getElementById('overall-text').textContent =
+                `${item.name}: ${Math.round(progress * 100)}%`;
+            }
+          });
+
+          document.getElementById(`status-${i}`).textContent = 'Complete';
+          log(`✓ ${item.name} downloaded`);
+        }
+
+        // Move to installation
+        showStep('step-install');
+        await performInstallation();
+
+      } catch (error) {
+        showError(error.message);
+      }
+    }
+
+    async function performInstallation() {
+      log('Creating installation directory...', 'install-log');
+      document.getElementById('install-progress').style.width = '20%';
+
+      await ipcRenderer.invoke('create-install-dir', installPath);
+
+      log('Extracting runtime...', 'install-log');
+      document.getElementById('install-progress').style.width = '40%';
+      await ipcRenderer.invoke('extract-zip', { file: 'runtime.zip', dest: installPath });
+
+      log('Extracting backend...', 'install-log');
+      document.getElementById('install-progress').style.width = '60%';
+      await ipcRenderer.invoke('extract-zip', { file: 'backend.zip', dest: installPath });
+
+      log('Extracting code...', 'install-log');
+      document.getElementById('install-progress').style.width = '80%';
+      await ipcRenderer.invoke('extract-zip', { file: 'code.zip', dest: installPath });
+
+      log('Creating shortcuts...', 'install-log');
+      document.getElementById('install-progress').style.width = '90%';
+      await ipcRenderer.invoke('create-shortcuts', installPath);
+
+      log('Cleaning up...', 'install-log');
+      document.getElementById('install-progress').style.width = '100%';
+      await ipcRenderer.invoke('cleanup-temp-files');
+
+      log('✓ Installation complete!', 'install-log');
+
+      setTimeout(() => showStep('step-complete'), 1000);
+    }
+
+    function showError(message) {
+      document.getElementById('error-message').textContent = message;
+      showStep('step-error');
+    }
+
+    function launchApp() {
+      ipcRenderer.invoke('launch-app', installPath);
+      window.close();
+    }
+  </script>
+</body>
+</html>

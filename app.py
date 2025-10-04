@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from config import SERVER, MAP_DIMENSIONS, SCREENSHOT
 from core import CoordinateTransform, MapLoader, CollectiblesLoader
 from core.continuous_capture import ContinuousCaptureService
-from core.image_preprocessing import preprocess_for_matching
+from core.port_manager import find_available_port, write_port_file
 from matching.cascade_scale_matcher import CascadeScaleMatcher, ScaleConfig
 from matching import SimpleMatcher
 from api import OverlayState, create_app
@@ -57,10 +57,16 @@ def initialize_system():
 
         # Load map and preprocess with optimized resize-first order
         print("Loading map with optimized preprocessing (resize in grayscale)...")
-        from config.paths import CachePaths
+        from config.paths import CachePaths, ExternalURLs
+
+        # Check if map exists
         hq_source = CachePaths.find_hq_map_source()
-        if not hq_source:
-            print("ERROR: Failed to find HQ map!")
+        if not hq_source or not hq_source.exists():
+            print("ERROR: HQ map not found!")
+            print("\nThe map file is required but was not found in any of the expected locations.")
+            print("Please ensure the installer downloaded the map data during installation.")
+            print("\nExpected locations:")
+            print(f"  - Installation: {CachePaths.DATA_DIR / CachePaths.HQ_MAP_SOURCE_FILE}")
             return None
 
         # Load as color, will convert to grayscale in preprocessing
@@ -147,7 +153,10 @@ def initialize_system():
                 frame_lock = threading.Lock()
                 capture_active = True
 
-                game_capture = WindowsCapture(window_name=window_title)
+                game_capture = WindowsCapture(
+                    window_name=window_title,
+                    cursor_capture=False  # Hide cursor in screen captures
+                )
 
                 @game_capture.event
                 def on_frame_arrived(frame, capture_control):
@@ -231,6 +240,16 @@ def main():
         print("\nFailed to initialize system. Exiting.")
         sys.exit(1)
 
+    # Find available port (dynamic allocation for packaged app)
+    try:
+        port = find_available_port(start_port=SERVER.PORT)
+        port_file = write_port_file(port)
+        print(f"Using port: {port}")
+        print(f"Port file: {port_file}")
+    except RuntimeError as e:
+        print(f"\nFailed to find available port: {e}")
+        sys.exit(1)
+
     # Start continuous capture service if available
     if state.capture_service:
         state.capture_service.start()
@@ -243,8 +262,22 @@ def main():
     if state.capture_service:
         state.capture_service.socketio = socketio
 
+    # Initialize game focus manager (RDR2 window monitoring)
+    from core.game_focus_manager import GameFocusManager
+    from core.click_observer import ClickObserver
+
+    def event_emitter(event_name, data):
+        """Emit events via WebSocket"""
+        socketio.emit(event_name, data, namespace='/')
+
+    state.game_focus_manager = GameFocusManager(emit_callback=event_emitter)
+    state.game_focus_manager.start()
+
+    state.click_observer = ClickObserver(emit_callback=event_emitter)
+    state.click_observer.start()
+
     # Start server
-    print(f"Server starting on http://{SERVER.HOST}:{SERVER.PORT}")
+    print(f"Server starting on http://{SERVER.HOST}:{port}")
     print("Press Ctrl+C to stop\n")
 
     try:
@@ -257,7 +290,7 @@ def main():
         socketio.run(
             app,
             host=SERVER.HOST,
-            port=SERVER.PORT,
+            port=port,  # Use dynamic port
             debug=False,  # Disable debug mode
             allow_unsafe_werkzeug=True  # Suppress werkzeug warning
         )

@@ -1,0 +1,37 @@
+{
+  "name": "rdo-overlay-bootstrap",
+  "version": "1.0.0",
+  "description": "Bootstrap installer for RDO Map Overlay",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "dependencies": {
+    "adm-zip": "^0.5.10"
+  },
+  "devDependencies": {
+    "electron": "^27.0.0",
+    "electron-builder": "^24.6.4"
+  },
+  "build": {
+    "appId": "com.rdo.bootstrap",
+    "productName": "RDO Map Overlay Installer",
+    "directories": {
+      "output": "../../build/bootstrap"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "files": [
+      "**/*",
+      "../bootstrap-installer.html"
+    ],
+    "forceCodeSigning": false
+  }
+}
