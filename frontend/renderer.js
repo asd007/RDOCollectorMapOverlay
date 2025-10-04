@@ -817,12 +817,18 @@ let cursorPollingInterval = null;
 let currentHoveredCollectible = null;
 
 function findCollectibleAt(x, y) {
-  /**Hit-test collectibles at cursor position*/
+  /**Hit-test collectibles at cursor position (skip collected items)*/
   if (!currentCollectibles || currentCollectibles.length === 0) {
     return null;
   }
 
   for (const collectible of currentCollectibles) {
+    // Skip collected items (not hit-testable for hover)
+    const id = getCollectibleId(collectible);
+    if (collectedItems.has(id)) {
+      continue;
+    }
+
     const dx = x - collectible.x;
     const dy = y - collectible.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
