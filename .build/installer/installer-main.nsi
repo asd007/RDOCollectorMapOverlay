@@ -406,61 +406,103 @@ Section "Core Components" SEC_CORE
   npm_exists:
 
   ; Install node_modules to shared location, then create junction
-  DetailPrint "Installing dependencies to shared location..."
-  Push "Installing to ProgramData (shared across updates)"
-  Call LogWrite
+  ; Skip if node_modules already exists and package.json hasn't changed
+  DetailPrint "Checking if npm install is needed..."
 
-  ; Remove old node_modules if it exists (from previous install or junction)
-  IfFileExists "$INSTDIR\app\node_modules" 0 no_old_modules
-    DetailPrint "Removing old node_modules..."
+  ; Check if node_modules already exists in shared location
+  StrCpy $2 "0"  ; Default: need to install
+  IfFileExists "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules\node_modules" 0 need_npm_install
+    ; Check if package.json has changed by comparing file sizes and dates
+    IfFileExists "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules\package.json" 0 need_npm_install
+      DetailPrint "node_modules exists, checking if package.json changed..."
 
-    ; Check if it's a junction using fsutil
+      ; Use fc (file compare) to check if package.json changed
+      nsExec::Exec 'fc /b "$INSTDIR\app\package.json" "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules\package.json"'
+      Pop $1
+      ${If} $1 == 0
+        ; Files are identical - skip npm install
+        DetailPrint "package.json unchanged, skipping npm install"
+        Push "npm install skipped - node_modules already up-to-date"
+        Call LogWrite
+        StrCpy $2 "1"  ; Skip npm install
+        Goto npm_install_done
+      ${EndIf}
+  need_npm_install:
+
+  ${If} $2 == "0"
+    ; Need to install - remove old junction first
+    DetailPrint "Installing dependencies to shared location..."
+    Push "Installing to ProgramData (shared across updates)"
+    Call LogWrite
+
+    ; Remove old node_modules junction if it exists
+    IfFileExists "$INSTDIR\app\node_modules" 0 no_old_modules
+      DetailPrint "Removing old node_modules junction..."
+      nsExec::Exec 'fsutil reparsepoint query "$INSTDIR\app\node_modules"'
+      Pop $1
+      ${If} $1 == 0
+        RMDir "$INSTDIR\app\node_modules"
+      ${Else}
+        RMDir /r "$INSTDIR\app\node_modules"
+      ${EndIf}
+    no_old_modules:
+
+    ; Copy package.json to prefix directory
+    DetailPrint "Preparing shared modules directory..."
+    CreateDirectory "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules"
+    CopyFiles "$INSTDIR\app\package.json" "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules\package.json"
+
+    ; Copy package-lock.json if it exists
+    IfFileExists "$INSTDIR\app\package-lock.json" 0 no_lock_file
+      CopyFiles "$INSTDIR\app\package-lock.json" "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules\package-lock.json"
+    no_lock_file:
+
+    ; Run npm install
+    DetailPrint "Running npm install..."
+    Push "Running npm install"
+    Call LogWrite
+
+    SetOutPath "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules"
+    nsExec::ExecToLog '"$CommonAppDataDir\RDO-Map-Overlay\runtime\node\npm.cmd" install --production --no-fund --no-audit'
+    Pop $0
+    DetailPrint "npm install exit code: $0"
+    Push "npm install exit code: $0"
+    Call LogWrite
+
+    ${If} $0 != 0
+      Push "ERROR: npm install failed with exit code $0"
+      Call LogWrite
+      MessageBox MB_YESNO "npm install returned error code $0.$\n$\nContinue anyway? (Application may not work correctly)" IDYES npm_continue
+      Abort
+    npm_continue:
+    ${EndIf}
+
+    DetailPrint "npm install completed"
+    Push "npm install completed successfully"
+    Call LogWrite
+  ${EndIf}
+
+  npm_install_done:
+
+  ; Create junction to shared node_modules (if not already present)
+  DetailPrint "Setting up junction to shared node_modules..."
+
+  IfFileExists "$INSTDIR\app\node_modules" 0 create_junction
+    ; Junction might already exist - verify it points to correct location
     nsExec::Exec 'fsutil reparsepoint query "$INSTDIR\app\node_modules"'
     Pop $1
     ${If} $1 == 0
-      ; It's a junction - remove it (won't delete target)
-      RMDir "$INSTDIR\app\node_modules"
+      DetailPrint "Junction already exists and is valid"
+      Push "Junction already exists: app\node_modules -> app-modules\node_modules"
+      Call LogWrite
+      Goto junction_done
     ${Else}
-      ; It's a real directory - delete it
+      ; Not a junction, remove it
+      DetailPrint "Removing old node_modules directory..."
       RMDir /r "$INSTDIR\app\node_modules"
     ${EndIf}
-  no_old_modules:
 
-  ; Copy package.json to prefix directory (npm install --prefix needs it there)
-  DetailPrint "Preparing shared modules directory..."
-  CreateDirectory "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules"
-  CopyFiles "$INSTDIR\app\package.json" "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules\package.json"
-
-  ; Copy package-lock.json if it exists
-  IfFileExists "$INSTDIR\app\package-lock.json" 0 no_lock_file
-    CopyFiles "$INSTDIR\app\package-lock.json" "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules\package-lock.json"
-  no_lock_file:
-
-  ; Install using --prefix to shared location
-  DetailPrint "Running npm install with custom prefix..."
-  Push "npm install --prefix $CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules"
-  Call LogWrite
-
-  SetOutPath "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules"
-  nsExec::ExecToLog '"$CommonAppDataDir\RDO-Map-Overlay\runtime\node\npm.cmd" install --production --no-fund --no-audit'
-  Pop $0
-  DetailPrint "npm install exit code: $0"
-  Push "npm install exit code: $0"
-  Call LogWrite
-
-  ${If} $0 != 0
-    Push "ERROR: npm install failed with exit code $0"
-    Call LogWrite
-    MessageBox MB_YESNO "npm install returned error code $0.$\n$\nContinue anyway? (Application may not work correctly)" IDYES npm_continue
-    Abort
-  npm_continue:
-  ${EndIf}
-
-  DetailPrint "npm install completed"
-  Push "npm install completed successfully"
-  Call LogWrite
-
-  ; Create junction to shared node_modules
+  create_junction:
   DetailPrint "Creating junction to shared node_modules..."
   Push "Creating junction: app\node_modules -> app-modules\node_modules"
   Call LogWrite
@@ -491,7 +533,21 @@ Section "Core Components" SEC_CORE
   junction_continue:
   ${EndIf}
 
-  ; Install @electron/rebuild for native module rebuilding (in same shared location)
+  junction_done:
+
+  ; Install @electron/rebuild and rebuild native modules (skip if already done)
+  DetailPrint "Checking if native modules need rebuilding..."
+
+  ; Check if rebuild marker exists and npm install was skipped
+  ${If} $2 == "1"
+    IfFileExists "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules\.rebuild-done" 0 need_rebuild
+      DetailPrint "Native modules already rebuilt, skipping"
+      Push "electron-rebuild skipped - already completed"
+      Call LogWrite
+      Goto rebuild_done
+  ${EndIf}
+
+  need_rebuild:
   DetailPrint "Installing @electron/rebuild..."
   Push "Installing @electron/rebuild"
   Call LogWrite
@@ -513,6 +569,11 @@ Section "Core Components" SEC_CORE
       DetailPrint "Native modules rebuilt successfully"
       Push "electron-rebuild completed successfully"
       Call LogWrite
+
+      ; Create marker file to skip rebuild on next install
+      FileOpen $1 "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules\.rebuild-done" w
+      FileWrite $1 "Rebuild completed successfully$\r$\n"
+      FileClose $1
     ${Else}
       DetailPrint "Warning: electron-rebuild returned code $0"
       Push "Warning: electron-rebuild exited with code $0"
@@ -524,9 +585,10 @@ Section "Core Components" SEC_CORE
     Call LogWrite
   ${EndIf}
 
-  ; Install Python packages
-  DetailPrint "Installing Python packages..."
-  DetailPrint "Requirements file: $INSTDIR\app\backend\requirements.txt"
+  rebuild_done:
+
+  ; Install Python packages (skip if already installed and requirements.txt unchanged)
+  DetailPrint "Checking if Python packages need installation..."
 
   ; Check if python.exe exists
   IfFileExists "$CommonAppDataDir\RDO-Map-Overlay\runtime\python\python.exe" python_exists
@@ -540,27 +602,52 @@ Section "Core Components" SEC_CORE
     Abort
   requirements_exists:
 
-  DetailPrint "Running pip install..."
-  Push "Running pip install: $CommonAppDataDir\RDO-Map-Overlay\runtime\python\python.exe -m pip install -r $INSTDIR\app\backend\requirements.txt"
-  Call LogWrite
+  ; Check if we can skip pip install (requirements.txt unchanged)
+  StrCpy $3 "0"  ; Default: need to install
+  IfFileExists "$CommonAppDataDir\RDO-Map-Overlay\runtime\python\.requirements.txt" 0 need_pip_install
+    DetailPrint "Checking if requirements.txt changed..."
 
-  nsExec::ExecToLog '"$CommonAppDataDir\RDO-Map-Overlay\runtime\python\python.exe" -m pip install --no-warn-script-location -r "$INSTDIR\app\backend\requirements.txt"'
-  Pop $0
-  DetailPrint "pip install exit code: $0"
-  Push "pip install exit code: $0"
-  Call LogWrite
+    ; Compare requirements.txt files
+    nsExec::Exec 'fc /b "$INSTDIR\app\backend\requirements.txt" "$CommonAppDataDir\RDO-Map-Overlay\runtime\python\.requirements.txt"'
+    Pop $1
+    ${If} $1 == 0
+      ; Files are identical - skip pip install
+      DetailPrint "requirements.txt unchanged, skipping pip install"
+      Push "pip install skipped - Python packages already up-to-date"
+      Call LogWrite
+      StrCpy $3 "1"  ; Skip pip install
+      Goto pip_install_done
+    ${EndIf}
+  need_pip_install:
 
-  ${If} $0 != 0
-    Push "ERROR: pip install failed with exit code $0"
+  ${If} $3 == "0"
+    DetailPrint "Running pip install..."
+    Push "Running pip install"
     Call LogWrite
-    MessageBox MB_YESNO "pip install returned error code $0.$\n$\nContinue anyway? (Application may not work correctly)" IDYES pip_continue
-    Abort
-  pip_continue:
+
+    nsExec::ExecToLog '"$CommonAppDataDir\RDO-Map-Overlay\runtime\python\python.exe" -m pip install --no-warn-script-location -r "$INSTDIR\app\backend\requirements.txt"'
+    Pop $0
+    DetailPrint "pip install exit code: $0"
+    Push "pip install exit code: $0"
+    Call LogWrite
+
+    ${If} $0 != 0
+      Push "ERROR: pip install failed with exit code $0"
+      Call LogWrite
+      MessageBox MB_YESNO "pip install returned error code $0.$\n$\nContinue anyway? (Application may not work correctly)" IDYES pip_continue
+      Abort
+    pip_continue:
+    ${EndIf}
+
+    DetailPrint "Python packages installed successfully"
+    Push "Python packages installed successfully"
+    Call LogWrite
+
+    ; Save copy of requirements.txt to detect changes on next install
+    CopyFiles "$INSTDIR\app\backend\requirements.txt" "$CommonAppDataDir\RDO-Map-Overlay\runtime\python\.requirements.txt"
   ${EndIf}
 
-  DetailPrint "Python packages installed successfully"
-  Push "Python packages installed successfully"
-  Call LogWrite
+  pip_install_done:
 
   ; Create launcher batch file (simplified - Electron spawns backend)
   FileOpen $1 "$INSTDIR\launcher.bat" w
