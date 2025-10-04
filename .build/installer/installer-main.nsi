@@ -65,8 +65,8 @@ InstallDirRegKey HKLM "Software\${PRODUCT_NAME_SAFE}" ""
 RequestExecutionLevel admin
 BrandingText "${PRODUCT_NAME} ${PRODUCT_VERSION}"
 
-; Version Info
-VIProductVersion "${PRODUCT_VERSION}.0"
+; Version Info (expects 4-part version like X.X.X.X from build script)
+VIProductVersion "${PRODUCT_VERSION}"
 VIAddVersionKey "ProductName" "${PRODUCT_NAME}"
 VIAddVersionKey "CompanyName" "${PRODUCT_PUBLISHER}"
 VIAddVersionKey "LegalCopyright" "© 2024 ${PRODUCT_PUBLISHER}"

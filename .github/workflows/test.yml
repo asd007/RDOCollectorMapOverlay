@@ -104,45 +104,26 @@ jobs:
           pip install -r requirements.txt
         }
 
-    - name: Download RDO map (if not cached)
+    - name: Pull Git LFS files (map)
       if: steps.cache-map.outputs.cache-hit != 'true'
       shell: pwsh
       run: |
-        Write-Host "Map not in cache, attempting to download..."
+        Write-Host "Map not in cache, pulling from Git LFS..."
 
-        # Create data directory if it doesn't exist
-        if (-not (Test-Path "data")) {
-          New-Item -ItemType Directory -Path "data" -Force
-        }
+        # Install Git LFS if not available
+        git lfs install
 
-        # Try to download from release assets
-        try {
-          $url = "${{ env.MAP_URL }}"
-          $gzPath = "data/rdr2_map_hq.png.gz"
-          $pngPath = "data/rdr2_map_hq.png"
+        # Pull LFS files (map is tracked in Git LFS)
+        git lfs pull --include="data/rdr2_map_hq.png"
 
-          Write-Host "Downloading from: $url"
-          Invoke-WebRequest -Uri $url -OutFile $gzPath -UseBasicParsing
-
-          # Decompress the file
-          Write-Host "Decompressing map file..."
-          $input = [System.IO.File]::OpenRead($gzPath)
-          $output = [System.IO.File]::Create($pngPath)
-          $gzipStream = [System.IO.Compression.GzipStream]::new($input, [System.IO.Compression.CompressionMode]::Decompress)
-          $gzipStream.CopyTo($output)
-          $gzipStream.Close()
-          $output.Close()
-          $input.Close()
-
-          Remove-Item $gzPath -Force
-          Write-Host "Map downloaded and decompressed successfully"
-        }
-        catch {
-          Write-Host "::warning::Could not download map from release assets: $_"
-          Write-Host "::warning::Tests may fail without the map file"
-
-          # Create a placeholder file to avoid repeated download attempts
-          New-Item -ItemType File -Path "data/rdr2_map_hq.png" -Force | Out-Null
+        # Verify file was pulled
+        if (Test-Path "data/rdr2_map_hq.png") {
+          $size = (Get-Item "data/rdr2_map_hq.png").Length
+          $sizeMB = [math]::Round($size / 1MB, 2)
+          Write-Host "Map file pulled from Git LFS: $sizeMB MB"
+        } else {
+          Write-Host "::error::Failed to pull map file from Git LFS"
+          exit 1
         }
 
     - name: Verify map file

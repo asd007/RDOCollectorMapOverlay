@@ -336,6 +336,25 @@ if (Test-Path "..\..\frontend\package.json") {
     }
 }
 
+# Convert semantic version to NSIS-compatible format (X.X.X.X)
+# NSIS VIProductVersion requires exactly 4 numeric parts
+# Strip pre-release suffix (e.g., "0.1.0-rc.1" -> "0.1.0.1")
+$nsisVersion = $version
+if ($version -match '^(\d+\.\d+\.\d+)(-(.+))?$') {
+    $baseVersion = $matches[1]  # e.g., "0.1.0"
+    $preRelease = $matches[3]   # e.g., "rc.1"
+
+    # Extract build number from pre-release suffix if present
+    $buildNumber = 0
+    if ($preRelease -match '(\d+)$') {
+        $buildNumber = $matches[1]
+    }
+
+    # Create 4-part version: "0.1.0.1"
+    $nsisVersion = "$baseVersion.$buildNumber"
+    Write-Host "Converted to NSIS version: $nsisVersion (for VIProductVersion)" -ForegroundColor Gray
+}
+
 # Ensure build output directory exists
 if (-not (Test-Path $buildDir)) {
     New-Item -ItemType Directory -Path $buildDir -Force | Out-Null
@@ -369,7 +388,7 @@ if ($lockedFiles.Count -gt 0) {
     exit 1
 }
 
-$process = Start-Process -FilePath $makensisPath -ArgumentList "/V3", "/DPRODUCT_VERSION=$version", "installer-main.nsi" -Wait -NoNewWindow -PassThru -WorkingDirectory $PSScriptRoot
+$process = Start-Process -FilePath $makensisPath -ArgumentList "/V3", "/DPRODUCT_VERSION=$nsisVersion", "installer-main.nsi" -Wait -NoNewWindow -PassThru -WorkingDirectory $PSScriptRoot
 
 if ($process.ExitCode -ne 0) {
     Write-Host ""
