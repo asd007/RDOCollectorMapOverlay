@@ -201,12 +201,12 @@ function hideTooltip() {
     clearTimeout(tooltipHideTimeout);
   }
 
-  // Wait 1 second before hiding
+  // Wait 150ms before hiding (reduced from 1000ms)
   tooltipHideTimeout = setTimeout(() => {
     if (tooltip) {
       tooltip.style.display = 'none';
     }
-  }, 1000);
+  }, 150);
 }
 
 // Cancel pending tooltip hide (when new tooltip appears)
