@@ -189,7 +189,7 @@
     /* Tooltip Styles */
     #collectible-tooltip {
       position: absolute;
-      background: rgba(0, 0, 0, 0.9);
+      background: rgba(0, 0, 0, 0.95);
       backdrop-filter: blur(10px);
       border: 2px solid rgba(217, 119, 6, 0.7);
       border-radius: 8px;
@@ -197,9 +197,12 @@
       color: white;
       font-size: 12px;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      max-width: 300px;
+      width: 450px;
+      height: 300px;
+      box-sizing: border-box;
+      overflow: auto;
       z-index: 10000;
-      pointer-events: none;
+      pointer-events: auto;
       display: none;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
     }
@@ -213,25 +216,6 @@
       text-decoration: underline;
     }
 
-    /* Collectible interaction hints */
-    .interaction-hint {
-      position: absolute;
-      bottom: 20px;
-      right: 20px;
-      background: rgba(0, 0, 0, 0.7);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(217, 119, 6, 0.3);
-      border-radius: 6px;
-      padding: 8px 12px;
-      color: white;
-      font-size: 10px;
-      pointer-events: none;
-      display: none;
-    }
-
-    .interaction-hint.visible {
-      display: block;
-    }
   </style>
 </head>
 <body>
@@ -239,11 +223,6 @@
 
   <!-- Tooltip for collectible information -->
   <div id="collectible-tooltip"></div>
-
-  <!-- Interaction hints -->
-  <div class="interaction-hint" id="interaction-hint">
-    Right-click to mark collected • Hover for details
-  </div>
 
   <!-- Bottom overlay container for all UI -->
   <div id="bottom-overlay">
@@ -284,6 +263,10 @@
         <div class="hotkey-item">
           <span class="hotkey-key">Right Click</span>
           <span>Mark Collected</span>
+        </div>
+        <div class="hotkey-item">
+          <span class="hotkey-key">Ctrl+Shift+C</span>
+          <span>Clear Collected</span>
         </div>
       </div>
 
