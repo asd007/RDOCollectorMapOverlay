@@ -799,10 +799,10 @@ function connectWebSocket() {
       return; // Handled
     }
 
-    // 3. Check collectible markers
-    const collectible = findCollectibleAt(x, y);
+    // 3. Check collectible markers (include collected items for toggle)
+    const collectible = findCollectibleAt(x, y, true);
     if (collectible && button === 'right') {
-      // Right-click toggles collected status
+      // Right-click toggles collected status (works on both collected and uncollected)
       toggleCollected(collectible);
       return; // Handled
     }
@@ -816,17 +816,24 @@ function connectWebSocket() {
 let cursorPollingInterval = null;
 let currentHoveredCollectible = null;
 
-function findCollectibleAt(x, y) {
-  /**Hit-test collectibles at cursor position (skip collected items)*/
+function findCollectibleAt(x, y, includeCollected = false) {
+  /**
+   * Hit-test collectibles at cursor position
+   * @param {number} x - X coordinate
+   * @param {number} y - Y coordinate
+   * @param {boolean} includeCollected - Include collected items (for right-click toggle)
+   */
   if (!currentCollectibles || currentCollectibles.length === 0) {
     return null;
   }
 
   for (const collectible of currentCollectibles) {
-    // Skip collected items (not hit-testable for hover)
-    const id = getCollectibleId(collectible);
-    if (collectedItems.has(id)) {
-      continue;
+    // Skip collected items unless explicitly requested (e.g., for right-click toggle)
+    if (!includeCollected) {
+      const id = getCollectibleId(collectible);
+      if (collectedItems.has(id)) {
+        continue;
+      }
     }
 
     const dx = x - collectible.x;
