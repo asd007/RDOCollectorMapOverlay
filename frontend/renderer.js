@@ -1296,4 +1296,60 @@ ipcRenderer.on('refresh-data', () => {
   refreshData();
 });
 
+// Cycle timer widget
+function updateCycleTimerWidget() {
+  const now = new Date();
+  const utcNow = new Date(now.getTime() + now.getTimezoneOffset() * 60000);
+
+  const tomorrow = new Date(utcNow);
+  tomorrow.setUTCHours(24, 0, 0, 0);
+
+  const diff = tomorrow - utcNow;
+
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+  const timeString = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+  const timerWidget = document.getElementById('timer-widget-value');
+  if (timerWidget) {
+    timerWidget.textContent = timeString;
+  }
+}
+
+// Click handler for timer widget
+const timerWidget = document.getElementById('cycle-timer-widget');
+if (timerWidget) {
+  timerWidget.addEventListener('click', async () => {
+    const tracker = document.getElementById('cycle-tracker');
+    if (tracker) {
+      if (tracker.style.display === 'none') {
+        // Opening tracker - disable click-through
+        tracker.style.display = 'block';
+        await ipcRenderer.invoke('set-click-through', false);
+      } else {
+        // Closing tracker - re-enable click-through
+        tracker.style.display = 'none';
+        await ipcRenderer.invoke('set-click-through', true);
+      }
+    }
+  });
+}
+
+// Start timer widget updates
+setInterval(updateCycleTimerWidget, 1000);
+updateCycleTimerWidget(); // Initial update
+
+// Handle messages from cycle-tracker iframe
+window.addEventListener('message', async (event) => {
+  if (event.data.type === 'close-tracker') {
+    const tracker = document.getElementById('cycle-tracker');
+    if (tracker) {
+      tracker.style.display = 'none';
+      await ipcRenderer.invoke('set-click-through', true);
+    }
+  }
+});
+
 // Initialization is handled by async function at the top after getting backend port

@@ -232,10 +232,74 @@
     .interaction-hint.visible {
       display: block;
     }
+
+    /* Cycle Timer Widget */
+    #cycle-timer-widget {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: rgba(0, 0, 0, 0.9);
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(217, 119, 6, 0.5);
+      border-radius: 8px;
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      z-index: 10000;
+      user-select: none;
+    }
+
+    #cycle-timer-widget:hover {
+      background: rgba(0, 0, 0, 0.95);
+      border-color: rgba(217, 119, 6, 0.8);
+      transform: scale(1.05);
+      box-shadow: 0 4px 16px rgba(217, 119, 6, 0.3);
+    }
+
+    #cycle-timer-widget:active {
+      transform: scale(0.98);
+    }
+
+    .timer-widget-label {
+      font-size: 9px;
+      color: #9ca3af;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+      text-align: center;
+    }
+
+    .timer-widget-value {
+      font-size: 16px;
+      font-weight: bold;
+      color: #fbbf24;
+      font-variant-numeric: tabular-nums;
+      text-align: center;
+    }
+
+    .timer-widget-hint {
+      font-size: 8px;
+      color: #6b7280;
+      text-align: center;
+      margin-top: 4px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    #cycle-timer-widget:hover .timer-widget-hint {
+      opacity: 1;
+    }
   </style>
 </head>
 <body>
   <canvas id="overlay-canvas"></canvas>
+
+  <!-- Cycle Timer Widget -->
+  <div id="cycle-timer-widget">
+    <div class="timer-widget-label">Next Cycle</div>
+    <div class="timer-widget-value" id="timer-widget-value">--:--:--</div>
+    <div class="timer-widget-hint">Click for collections</div>
+  </div>
 
   <!-- Tooltip for collectible information -->
   <div id="collectible-tooltip"></div>
@@ -244,6 +308,9 @@
   <div class="interaction-hint" id="interaction-hint">
     Right-click to mark collected • Hover for details
   </div>
+
+  <!-- Cycle Tracker -->
+  <iframe id="cycle-tracker" src="cycle-tracker.html" style="position: fixed; top: 80px; right: 20px; width: 280px; height: 650px; border: none; display: none; z-index: 10001; pointer-events: auto;"></iframe>
 
   <!-- Bottom overlay container for all UI -->
   <div id="bottom-overlay">
