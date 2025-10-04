@@ -761,8 +761,14 @@ Section "Uninstall"
   Delete "$INSTDIR\Uninstall.exe"
   Delete "$INSTDIR\install.log"
 
-  ; Remove app directory (node_modules junction points to ProgramData)
-  ; RMDir will remove the junction without deleting the target
+  ; CRITICAL: Remove node_modules junction BEFORE deleting app directory
+  ; RMDir without /r only removes the junction itself, not the target
+  IfFileExists "$INSTDIR\app\node_modules" 0 no_junction_to_remove
+    DetailPrint "Removing node_modules junction..."
+    RMDir "$INSTDIR\app\node_modules"
+  no_junction_to_remove:
+
+  ; Now safe to remove app directory (junction already removed)
   RMDir /r "$INSTDIR\app"
   RMDir /r "$INSTDIR\data\cache"
   Delete "$INSTDIR\data\*.json"
