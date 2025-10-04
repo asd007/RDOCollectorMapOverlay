@@ -109,7 +109,7 @@ const TYPE_ICONS = {
 // Collectible sizes (48x48 pixels at 2.4x)
 const COLLECTIBLE_SIZE = {
   outerRadius: 24,  // 48px diameter (3x from original 20px)
-  hitRadius: 40     // Hit detection radius (larger for easier targeting and click-through responsiveness)
+  hitRadius: 25     // Hit detection radius (tight to visual marker)
 };
 
 // Create tooltip element
@@ -774,8 +774,15 @@ async function pollCursor() {
 
   try {
     const cursorPos = await ipcRenderer.invoke('get-cursor-position');
-    const hoveredItem = findCollectibleAt(cursorPos.x, cursorPos.y);
     const overTooltip = isCursorOverTooltip(cursorPos.x, cursorPos.y);
+
+    // If cursor is over tooltip, don't check for other collectibles
+    // User is likely trying to interact with the tooltip (click video, etc.)
+    if (overTooltip) {
+      return; // Keep current tooltip visible, don't switch
+    }
+
+    const hoveredItem = findCollectibleAt(cursorPos.x, cursorPos.y);
 
     // Check if hover state changed
     if (hoveredItem !== currentHoveredCollectible) {
@@ -784,41 +791,108 @@ async function pollCursor() {
         currentHoveredCollectible = hoveredItem;
         const tooltipPos = calculateTooltipPosition(hoveredItem.x, hoveredItem.y);
         showTooltip(hoveredItem, tooltipPos.x, tooltipPos.y);
-      } else if (!overTooltip) {
-        // Stopped hovering and NOT over tooltip - hide it
+      } else {
+        // Stopped hovering - hide tooltip
         currentHoveredCollectible = null;
         hideTooltip();
       }
-      // If over tooltip but not over collectible, keep tooltip visible
     }
   } catch (error) {
     console.error('[Cursor Poll] Error:', error);
   }
 }
 
-function calculateTooltipPosition(x, y) {
-  /**Calculate tooltip position avoiding screen edges*/
+function calculateTooltipPosition(collectibleX, collectibleY) {
+  /**
+   * Calculate tooltip position with corner centered on collectible,
+   * minimizing overlap with other collectibles.
+   */
   const screenWidth = 1920;
   const screenHeight = 1080;
   const tooltipWidth = 450;
   const tooltipHeight = 300;
-  const offsetX = 20;
-  const offsetY = 20;
 
-  let posX = x + offsetX;
-  let posY = y + offsetY;
+  console.log(`[Tooltip] Calculating position for collectible at (${collectibleX}, ${collectibleY})`);
 
-  // Avoid right edge
-  if (posX + tooltipWidth > screenWidth) {
-    posX = x - tooltipWidth - 10;
+  // Try 4 positions: each corner of tooltip centered on collectible
+  const candidates = [
+    // Bottom-left corner on collectible (tooltip to the right and up)
+    { x: collectibleX, y: collectibleY - tooltipHeight, corner: 'bottom-left' },
+    // Bottom-right corner on collectible (tooltip to the left and up)
+    { x: collectibleX - tooltipWidth, y: collectibleY - tooltipHeight, corner: 'bottom-right' },
+    // Top-left corner on collectible (tooltip to the right and down)
+    { x: collectibleX, y: collectibleY, corner: 'top-left' },
+    // Top-right corner on collectible (tooltip to the left and down)
+    { x: collectibleX - tooltipWidth, y: collectibleY, corner: 'top-right' }
+  ];
+
+  // Filter out positions that go off-screen
+  const validCandidates = candidates.filter(pos => {
+    return pos.x >= 0 &&
+           pos.x + tooltipWidth <= screenWidth &&
+           pos.y >= 0 &&
+           pos.y + tooltipHeight <= screenHeight;
+  });
+
+  // If no valid candidates (collectible at screen edge), use fallback
+  if (validCandidates.length === 0) {
+    return {
+      x: Math.max(0, Math.min(collectibleX, screenWidth - tooltipWidth)),
+      y: Math.max(0, Math.min(collectibleY, screenHeight - tooltipHeight))
+    };
   }
 
-  // Avoid bottom edge
-  if (posY + tooltipHeight > screenHeight) {
-    posY = y - tooltipHeight - 10;
+  // For each valid position, count how many collectibles it overlaps
+  const scored = validCandidates.map(pos => {
+    let overlapCount = 0;
+
+    if (currentCollectibles) {
+      for (const col of currentCollectibles) {
+        // Skip the collectible we're showing tooltip for
+        if (col.x === collectibleX && col.y === collectibleY) {
+          continue;
+        }
+
+        // Check if collectible marker is inside tooltip bounds
+        if (col.x >= pos.x &&
+            col.x <= pos.x + tooltipWidth &&
+            col.y >= pos.y &&
+            col.y <= pos.y + tooltipHeight) {
+          overlapCount++;
+        }
+      }
+    }
+
+    return { ...pos, overlapCount };
+  });
+
+  // Pick position with minimum overlap
+  scored.sort((a, b) => a.overlapCount - b.overlapCount);
+
+  const selected = scored[0];
+
+  // Calculate which corner is centered on collectible
+  const corners = {
+    'top-left': { x: selected.x, y: selected.y },
+    'top-right': { x: selected.x + tooltipWidth, y: selected.y },
+    'bottom-left': { x: selected.x, y: selected.y + tooltipHeight },
+    'bottom-right': { x: selected.x + tooltipWidth, y: selected.y + tooltipHeight }
+  };
+
+  // Find which corner matches collectible position
+  let matchingCorner = 'NONE';
+  for (const [corner, pos] of Object.entries(corners)) {
+    if (pos.x === collectibleX && pos.y === collectibleY) {
+      matchingCorner = corner;
+      break;
+    }
   }
 
-  return { x: posX, y: posY };
+  console.log(`[Tooltip] Selected position: (${selected.x}, ${selected.y}), corner: ${selected.corner}, overlaps: ${selected.overlapCount}`);
+  console.log(`[Tooltip] Corner verification: ${matchingCorner} at (${collectibleX}, ${collectibleY})`);
+  console.log(`[Tooltip] Tooltip bounds: x=${selected.x}, y=${selected.y}, width=${tooltipWidth}, height=${tooltipHeight}`);
+
+  return { x: selected.x, y: selected.y };
 }
 
 function startCursorPolling() {
