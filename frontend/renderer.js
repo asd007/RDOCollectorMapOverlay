@@ -861,13 +861,41 @@ function isCursorOverTooltip(x, y) {
   return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
 }
 
+function isCursorOverTimerWidget(x, y) {
+  /**Check if cursor is over the cycle timer widget*/
+  const timerWidget = document.getElementById('cycle-timer-widget');
+  if (!timerWidget) {
+    return false;
+  }
+
+  const rect = timerWidget.getBoundingClientRect();
+  return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+}
+
+function isCursorOverTracker(x, y) {
+  /**Check if cursor is over the cycle tracker*/
+  const tracker = document.getElementById('cycle-tracker');
+  if (!tracker || tracker.style.display === 'none') {
+    return false;
+  }
+
+  const rect = tracker.getBoundingClientRect();
+  return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+}
+
+let clickThroughEnabled = true;
+
 async function pollCursor() {
-  /**Poll cursor position for tooltip display - overlay is always click-through*/
+  /**Poll cursor position for tooltip display and click-through management*/
   if (!isRdr2Active || !overlayVisible) {
-    // RDR2 not active or overlay hidden - hide tooltip
+    // RDR2 not active or overlay hidden - hide tooltip and enable click-through
     if (currentHoveredCollectible) {
       currentHoveredCollectible = null;
       hideTooltip();
+    }
+    if (!clickThroughEnabled) {
+      await ipcRenderer.invoke('set-click-through', true);
+      clickThroughEnabled = true;
     }
     return;
   }
@@ -875,11 +903,25 @@ async function pollCursor() {
   try {
     const cursorPos = await ipcRenderer.invoke('get-cursor-position');
     const overTooltip = isCursorOverTooltip(cursorPos.x, cursorPos.y);
+    const overTimerWidget = isCursorOverTimerWidget(cursorPos.x, cursorPos.y);
+    const overTracker = isCursorOverTracker(cursorPos.x, cursorPos.y);
 
-    // If cursor is over tooltip, don't check for other collectibles
-    // User is likely trying to interact with the tooltip (click video, etc.)
-    if (overTooltip) {
-      return; // Keep current tooltip visible, don't switch
+    // Manage click-through based on cursor position
+    const needsInteraction = overTooltip || overTimerWidget || overTracker;
+
+    if (needsInteraction && clickThroughEnabled) {
+      // Disable click-through for interaction
+      await ipcRenderer.invoke('set-click-through', false);
+      clickThroughEnabled = false;
+    } else if (!needsInteraction && !clickThroughEnabled) {
+      // Re-enable click-through
+      await ipcRenderer.invoke('set-click-through', true);
+      clickThroughEnabled = true;
+    }
+
+    // If cursor is over tooltip or tracker, don't check for collectibles
+    if (overTooltip || overTracker) {
+      return; // Keep current state
     }
 
     const hoveredItem = findCollectibleAt(cursorPos.x, cursorPos.y);
@@ -1321,18 +1363,15 @@ function updateCycleTimerWidget() {
 // Click handler for timer widget
 const timerWidget = document.getElementById('cycle-timer-widget');
 if (timerWidget) {
-  timerWidget.addEventListener('click', async () => {
+  timerWidget.addEventListener('click', () => {
     const tracker = document.getElementById('cycle-tracker');
     if (tracker) {
       if (tracker.style.display === 'none') {
-        // Opening tracker - disable click-through
         tracker.style.display = 'block';
-        await ipcRenderer.invoke('set-click-through', false);
       } else {
-        // Closing tracker - re-enable click-through
         tracker.style.display = 'none';
-        await ipcRenderer.invoke('set-click-through', true);
       }
+      // Click-through is automatically managed by pollCursor based on mouse position
     }
   });
 }
@@ -1342,12 +1381,12 @@ setInterval(updateCycleTimerWidget, 1000);
 updateCycleTimerWidget(); // Initial update
 
 // Handle messages from cycle-tracker iframe
-window.addEventListener('message', async (event) => {
+window.addEventListener('message', (event) => {
   if (event.data.type === 'close-tracker') {
     const tracker = document.getElementById('cycle-tracker');
     if (tracker) {
       tracker.style.display = 'none';
-      await ipcRenderer.invoke('set-click-through', true);
+      // Click-through is automatically managed by pollCursor
     }
   }
 });
