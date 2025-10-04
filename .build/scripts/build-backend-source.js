@@ -10,12 +10,12 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 const ROOT_DIR = path.join(__dirname, '..', '..');
-const BUILD_DIR = path.join(ROOT_DIR, '.build');
-const BACKEND_SOURCE_DIR = path.join(BUILD_DIR, 'backend-source');
+const BUILD_ARTIFACTS_DIR = path.join(ROOT_DIR, 'build', 'installer');
+const BACKEND_SOURCE_DIR = path.join(BUILD_ARTIFACTS_DIR, 'backend-source');
 
-console.log('╔════════════════════════════════════════╗');
-console.log('║  RDO Overlay - Backend Source Package ║');
-console.log('╚════════════════════════════════════════╝\n');
+console.log('============================================');
+console.log('  RDO Overlay - Backend Source Package');
+console.log('============================================\n');
 
 // Clean previous build
 if (fs.existsSync(BACKEND_SOURCE_DIR)) {
@@ -23,7 +23,7 @@ if (fs.existsSync(BACKEND_SOURCE_DIR)) {
 }
 fs.mkdirSync(BACKEND_SOURCE_DIR, { recursive: true });
 
-console.log('📦 Packaging Python source files...\n');
+console.log('[BUILD] Packaging Python source files...\n');
 
 // Directories and files to include
 const includes = [
@@ -42,19 +42,19 @@ includes.forEach(item => {
   const dest = path.join(BACKEND_SOURCE_DIR, item);
 
   if (!fs.existsSync(src)) {
-    console.warn(`⚠️  Skipping ${item} (not found)`);
+    console.warn(`[WARN] Skipping ${item} (not found)`);
     return;
   }
 
   if (fs.statSync(src).isDirectory()) {
     // Copy directory recursively
     copyDirectory(src, dest);
-    console.log(`  ✓ ${item}`);
+    console.log(`  [OK] ${item}`);
   } else {
     // Copy file
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     fs.copyFileSync(src, dest);
-    console.log(`  ✓ ${item}`);
+    console.log(`  [OK] ${item}`);
   }
 });
 
@@ -78,17 +78,17 @@ if __name__ == '__main__':
 `;
 
 fs.writeFileSync(path.join(BACKEND_SOURCE_DIR, 'run.py'), launcherScript);
-console.log('  ✓ run.py (launcher)');
+console.log('  [OK] run.py (launcher)');
 
 // Calculate total size
 const totalSize = getFolderSize(BACKEND_SOURCE_DIR);
 const sizeMB = (totalSize / 1024 / 1024).toFixed(1);
 
-console.log(`\n📊 Total size: ${sizeMB} MB`);
+console.log(`\n[STATS] Total size: ${sizeMB} MB`);
 
 // Create zip
-console.log('\n🗜️  Creating backend-source.zip...');
-const zipPath = path.join(BUILD_DIR, 'backend-source.zip');
+console.log('\n[ZIP] Creating backend-source.zip...');
+const zipPath = path.join(BUILD_ARTIFACTS_DIR, 'backend-source.zip');
 
 execSync(
   `powershell Compress-Archive -Path "${BACKEND_SOURCE_DIR}\\*" -DestinationPath "${zipPath}" -CompressionLevel Optimal -Force`,
@@ -97,13 +97,13 @@ execSync(
 
 const zipSize = (fs.statSync(zipPath).size / 1024 / 1024).toFixed(1);
 
-console.log('\n╔════════════════════════════════════════╗');
-console.log('║  ✅ Backend Source Package Complete!  ║');
-console.log('╚════════════════════════════════════════╝\n');
+console.log('\n============================================');
+console.log('  Backend Source Package Complete!');
+console.log('============================================\n');
 
-console.log(`📍 Package: build/backend-source.zip (${zipSize} MB)`);
-console.log(`\n🚀 This replaces the 58MB PyInstaller exe!`);
-console.log(`📥 Python runtime (30MB) + packages (50MB) download at install time\n`);
+console.log(`[OUTPUT] Package: build/backend-source.zip (${zipSize} MB)`);
+console.log(`\n[INFO] This replaces the 58MB PyInstaller exe!`);
+console.log(`[INFO] Python runtime (30MB) + packages (50MB) download at install time\n`);
 
 // Helper functions
 

@@ -14,13 +14,13 @@ const BACKEND_BUILD = path.join(BUILD_DIR, 'backend');
 const TEMP_DIR = path.join(BUILD_DIR, 'temp');
 
 console.log('🔨 Building RDO Overlay Backend...');
-console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+console.log('--------------------------------------------');
 
 // Check if PyInstaller is installed
 try {
   execSync('python -m PyInstaller --version', { stdio: 'ignore' });
 } catch (e) {
-  console.error('❌ PyInstaller not found!');
+  console.error('[ERROR] PyInstaller not found!');
   console.error('Install with: pip install pyinstaller');
   process.exit(1);
 }
@@ -46,7 +46,7 @@ try {
     }
   );
 } catch (e) {
-  console.error('❌ PyInstaller build failed!');
+  console.error('[ERROR] PyInstaller build failed!');
   process.exit(1);
 }
 
@@ -55,6 +55,6 @@ console.log('📁 Build complete...');
 const stats = fs.statSync(path.join(BACKEND_BUILD, 'rdo-overlay-backend.exe'));
 const sizeMB = (stats.size / 1024 / 1024).toFixed(1);
 
-console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-console.log(`✅ Backend built successfully!`);
+console.log('--------------------------------------------');
+console.log(`[SUCCESS] Backend built successfully!`);
 console.log(`📍 Output: build/backend/rdo-overlay-backend.exe (${sizeMB} MB)`);

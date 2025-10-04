@@ -206,10 +206,7 @@ Section "Core Components" SEC_CORE
   File "..\..\frontend\main.js"
   File "..\..\frontend\renderer.js"
   File "..\..\frontend\index.html"
-  File "..\..\frontend\setup-progress.html"
   File "..\..\frontend\first-launch-disclaimer.html"
-  File "..\..\frontend\node-environment-manager.js"
-  File "..\..\frontend\python-environment-manager.js"
   File "..\..\frontend\component-downloader.js"
   File "..\..\frontend\github-sha256-fetcher.js"
   File "..\..\frontend\icon.ico"
@@ -408,6 +405,45 @@ Section "Core Components" SEC_CORE
     Abort
   npm_exists:
 
+  ; Configure npm to use shared node_modules location via .npmrc
+  DetailPrint "Configuring npm to use shared node_modules location..."
+  Push "Configuring npm via .npmrc for shared dependencies"
+  Call LogWrite
+
+  ; Preserve existing node_modules if present (from old install)
+  IfFileExists "$INSTDIR\app\node_modules" 0 no_existing_modules
+    DetailPrint "Found existing node_modules, moving to shared location..."
+    Push "Moving existing node_modules to ProgramData (preserves installed packages)"
+    Call LogWrite
+
+    ; Remove old shared location if it exists
+    IfFileExists "$CommonAppDataDir\RDO-Map-Overlay\runtime\node_modules" 0 target_clear
+      RMDir /r "$CommonAppDataDir\RDO-Map-Overlay\runtime\node_modules"
+    target_clear:
+
+    ; Move existing modules to shared location
+    Rename "$INSTDIR\app\node_modules" "$CommonAppDataDir\RDO-Map-Overlay\runtime\node_modules"
+
+    ; Check if move succeeded
+    IfFileExists "$INSTDIR\app\node_modules" 0 move_done
+      ; Move failed, delete instead
+      DetailPrint "Move failed, deleting old node_modules..."
+      RMDir /r "$INSTDIR\app\node_modules"
+    move_done:
+  no_existing_modules:
+
+  ; Create .npmrc file to configure npm to use shared location
+  DetailPrint "Creating .npmrc configuration..."
+  FileOpen $1 "$INSTDIR\app\.npmrc" w
+  FileWrite $1 "# NPM configuration for shared dependencies$\r$\n"
+  FileWrite $1 "prefix=$CommonAppDataDir\RDO-Map-Overlay\runtime$\r$\n"
+  FileWrite $1 "cache=$CommonAppDataDir\RDO-Map-Overlay\runtime\npm-cache$\r$\n"
+  FileClose $1
+
+  Push "Created .npmrc with shared paths"
+  Call LogWrite
+  DetailPrint ".npmrc created - npm will install to: $CommonAppDataDir\RDO-Map-Overlay\runtime"
+
   DetailPrint "Running npm install..."
   Push "Running npm install from: $CommonAppDataDir\RDO-Map-Overlay\runtime\node\npm.cmd"
   Call LogWrite
@@ -443,8 +479,8 @@ Section "Core Components" SEC_CORE
     Push "Running electron-rebuild"
     Call LogWrite
 
-    ; Use the installed electron-rebuild
-    nsExec::ExecToLog '"$CommonAppDataDir\RDO-Map-Overlay\runtime\node\node.exe" "$INSTDIR\app\node_modules\@electron\rebuild\lib\cli.js" --force --module-dir="$INSTDIR\app"'
+    ; Use the installed electron-rebuild (in shared location due to .npmrc)
+    nsExec::ExecToLog '"$CommonAppDataDir\RDO-Map-Overlay\runtime\node\node.exe" "$CommonAppDataDir\RDO-Map-Overlay\runtime\node_modules\@electron\rebuild\lib\cli.js" --force --module-dir="$INSTDIR\app"'
     Pop $0
 
     ${If} $0 == 0
@@ -500,37 +536,16 @@ Section "Core Components" SEC_CORE
   Push "Python packages installed successfully"
   Call LogWrite
 
-  ; Create launcher batch file
+  ; Create launcher batch file (simplified - Electron spawns backend)
   FileOpen $1 "$INSTDIR\launcher.bat" w
   FileWrite $1 "@echo off$\r$\n"
   FileWrite $1 "cd /d $\"%~dp0$\"$\r$\n"
   FileWrite $1 "$\r$\n"
-  FileWrite $1 "REM Runtime paths in ProgramData (shared across installations)$\r$\n"
-  FileWrite $1 "set PYTHON_PATH=%PROGRAMDATA%\RDO-Map-Overlay\runtime\python\python.exe$\r$\n"
+  FileWrite $1 "REM Electron runtime path in ProgramData$\r$\n"
   FileWrite $1 "set ELECTRON_PATH=%PROGRAMDATA%\RDO-Map-Overlay\runtime\electron\electron.exe$\r$\n"
-  FileWrite $1 "set NODE_PATH=%PROGRAMDATA%\RDO-Map-Overlay\runtime\node$\r$\n"
   FileWrite $1 "$\r$\n"
-  FileWrite $1 "REM Set app directory$\r$\n"
-  FileWrite $1 "set APP_DIR=%~dp0app$\r$\n"
-  FileWrite $1 "$\r$\n"
-  FileWrite $1 "REM Tell frontend to skip environment setup (already done by installer)$\r$\n"
-  FileWrite $1 "set RDO_INSTALLER_MODE=1$\r$\n"
-  FileWrite $1 "set RDO_SKIP_ENV_SETUP=1$\r$\n"
-  FileWrite $1 "$\r$\n"
-  FileWrite $1 "REM Start Python backend in background$\r$\n"
-  FileWrite $1 "start /B $\"$\" $\"%PYTHON_PATH%$\" $\"%APP_DIR%\backend\app.py$\"$\r$\n"
-  FileWrite $1 "$\r$\n"
-  FileWrite $1 "REM Get the PID of the Python process we just started$\r$\n"
-  FileWrite $1 "for /f $\"tokens=2$\" %%%%i in ('tasklist /FI $\"IMAGENAME eq python.exe$\" /FO LIST ^| findstr /I $\"PID:$\"') do set BACKEND_PID=%%%%i$\r$\n"
-  FileWrite $1 "$\r$\n"
-  FileWrite $1 "REM Wait for backend to be ready$\r$\n"
-  FileWrite $1 "timeout /t 2 /nobreak >nul$\r$\n"
-  FileWrite $1 "$\r$\n"
-  FileWrite $1 "REM Start Electron (blocks until it exits)$\r$\n"
-  FileWrite $1 "$\"%ELECTRON_PATH%$\" $\"%APP_DIR%$\"$\r$\n"
-  FileWrite $1 "$\r$\n"
-  FileWrite $1 "REM When Electron exits, kill our backend process$\r$\n"
-  FileWrite $1 "if defined BACKEND_PID taskkill /F /PID %BACKEND_PID% >nul 2>&1$\r$\n"
+  FileWrite $1 "REM Launch Electron (which will spawn Python backend as child process)$\r$\n"
+  FileWrite $1 "$\"%ELECTRON_PATH%$\" $\"%~dp0app$\"$\r$\n"
   FileClose $1
 
   ; Clean up temp directory
@@ -632,6 +647,11 @@ Section "Uninstall"
   Delete "$INSTDIR\launcher.bat"
   Delete "$INSTDIR\Uninstall.exe"
   Delete "$INSTDIR\install.log"
+
+  ; Remove .npmrc configuration
+  Delete "$INSTDIR\app\.npmrc"
+
+  ; Remove app directory (node_modules is in ProgramData, not here)
   RMDir /r "$INSTDIR\app"
   RMDir /r "$INSTDIR\data\cache"
   Delete "$INSTDIR\data\*.json"
@@ -645,7 +665,8 @@ Section "Uninstall"
   ${If} $0 == ${BST_CHECKED}
     ; Keep shared runtimes and map data
     DetailPrint "Keeping shared components at: $CommonAppDataDir\RDO-Map-Overlay\"
-    DetailPrint "  - Runtimes: ~205 MB"
+    DetailPrint "  - Runtimes (Python, Electron, Node): ~205 MB"
+    DetailPrint "  - Node.js dependencies: ~200 MB"
     DetailPrint "  - Map data: ~167 MB"
   ${Else}
     ; Remove all shared components from ProgramData

@@ -10,9 +10,9 @@ const path = require('path');
 const ROOT_DIR = path.join(__dirname, '..');
 
 console.log('');
-console.log('╔════════════════════════════════════════╗');
-console.log('║  RDO Map Overlay - Release Build      ║');
-console.log('╚════════════════════════════════════════╝');
+console.log('============================================');
+console.log('    RDO Map Overlay - Release Build        ');
+console.log('============================================');
 console.log('');
 
 async function run(command, options = {}) {
@@ -23,7 +23,7 @@ async function run(command, options = {}) {
       ...options
     });
   } catch (e) {
-    console.error(`\n❌ Command failed: ${command}`);
+    console.error(`\n[ERROR] Command failed: ${command}`);
     process.exit(1);
   }
 }
@@ -31,25 +31,25 @@ async function run(command, options = {}) {
 async function main() {
   // Step 1: Build backend
   console.log('📦 Step 1/3: Building Backend');
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('--------------------------------------------');
   await run('node .build/build-backend.js');
   console.log('');
 
   // Step 2: Install frontend dependencies (if needed)
   console.log('📦 Step 2/3: Preparing Frontend');
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('--------------------------------------------');
   await run('npm install', { cwd: path.join(ROOT_DIR, 'frontend') });
   console.log('');
 
   // Step 3: Build Electron app with embedded backend
   console.log('📦 Step 3/3: Building Installer');
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('--------------------------------------------');
   await run('npm run build', { cwd: path.join(ROOT_DIR, 'frontend') });
   console.log('');
 
-  console.log('╔════════════════════════════════════════╗');
-  console.log('║  ✅ Release Build Complete!           ║');
-  console.log('╚════════════════════════════════════════╝');
+  console.log('============================================');
+  console.log('    [SUCCESS] Release Build Complete!             ');
+  console.log('============================================');
   console.log('');
   console.log('📍 Backend: build/backend/rdo-overlay-backend.exe');
   console.log('📍 Installer: build/frontend/RDO-Map-Overlay-Setup.exe');
@@ -57,6 +57,6 @@ async function main() {
 }
 
 main().catch(err => {
-  console.error('\n❌ Build failed:', err);
+  console.error('\n[ERROR] Build failed:', err);
   process.exit(1);
 });
