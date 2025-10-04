@@ -405,50 +405,34 @@ Section "Core Components" SEC_CORE
     Abort
   npm_exists:
 
-  ; Configure npm to use shared node_modules location via .npmrc
-  DetailPrint "Configuring npm to use shared node_modules location..."
-  Push "Configuring npm via .npmrc for shared dependencies"
+  ; Install node_modules to shared location, then create junction
+  DetailPrint "Installing dependencies to shared location..."
+  Push "Installing to ProgramData (shared across updates)"
   Call LogWrite
 
-  ; Preserve existing node_modules if present (from old install)
-  IfFileExists "$INSTDIR\app\node_modules" 0 no_existing_modules
-    DetailPrint "Found existing node_modules, moving to shared location..."
-    Push "Moving existing node_modules to ProgramData (preserves installed packages)"
-    Call LogWrite
+  ; Remove old node_modules if it exists (from previous install or junction)
+  IfFileExists "$INSTDIR\app\node_modules" 0 no_old_modules
+    DetailPrint "Removing old node_modules..."
 
-    ; Remove old shared location if it exists
-    IfFileExists "$CommonAppDataDir\RDO-Map-Overlay\runtime\node_modules" 0 target_clear
-      RMDir /r "$CommonAppDataDir\RDO-Map-Overlay\runtime\node_modules"
-    target_clear:
-
-    ; Move existing modules to shared location
-    Rename "$INSTDIR\app\node_modules" "$CommonAppDataDir\RDO-Map-Overlay\runtime\node_modules"
-
-    ; Check if move succeeded
-    IfFileExists "$INSTDIR\app\node_modules" 0 move_done
-      ; Move failed, delete instead
-      DetailPrint "Move failed, deleting old node_modules..."
+    ; Check if it's a junction using fsutil
+    nsExec::Exec 'fsutil reparsepoint query "$INSTDIR\app\node_modules"'
+    Pop $1
+    ${If} $1 == 0
+      ; It's a junction - remove it (won't delete target)
+      RMDir "$INSTDIR\app\node_modules"
+    ${Else}
+      ; It's a real directory - delete it
       RMDir /r "$INSTDIR\app\node_modules"
-    move_done:
-  no_existing_modules:
+    ${EndIf}
+  no_old_modules:
 
-  ; Create .npmrc file to configure npm to use shared location
-  DetailPrint "Creating .npmrc configuration..."
-  FileOpen $1 "$INSTDIR\app\.npmrc" w
-  FileWrite $1 "# NPM configuration for shared dependencies$\r$\n"
-  FileWrite $1 "prefix=$CommonAppDataDir\RDO-Map-Overlay\runtime$\r$\n"
-  FileWrite $1 "cache=$CommonAppDataDir\RDO-Map-Overlay\runtime\npm-cache$\r$\n"
-  FileClose $1
-
-  Push "Created .npmrc with shared paths"
-  Call LogWrite
-  DetailPrint ".npmrc created - npm will install to: $CommonAppDataDir\RDO-Map-Overlay\runtime"
-
-  DetailPrint "Running npm install..."
-  Push "Running npm install from: $CommonAppDataDir\RDO-Map-Overlay\runtime\node\npm.cmd"
+  ; Install using --prefix to shared location
+  DetailPrint "Running npm install with custom prefix..."
+  Push "npm install --prefix $CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules"
   Call LogWrite
 
-  nsExec::ExecToLog '"$CommonAppDataDir\RDO-Map-Overlay\runtime\node\npm.cmd" install --production --no-fund --no-audit'
+  SetOutPath "$INSTDIR\app"
+  nsExec::ExecToLog '"$CommonAppDataDir\RDO-Map-Overlay\runtime\node\npm.cmd" install --production --no-fund --no-audit --prefix="$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules"'
   Pop $0
   DetailPrint "npm install exit code: $0"
   Push "npm install exit code: $0"
@@ -466,12 +450,43 @@ Section "Core Components" SEC_CORE
   Push "npm install completed successfully"
   Call LogWrite
 
+  ; Create junction to shared node_modules
+  DetailPrint "Creating junction to shared node_modules..."
+  Push "Creating junction: app\node_modules -> app-modules\node_modules"
+  Call LogWrite
+
+  nsExec::ExecToLog 'cmd /c mklink /J "$INSTDIR\app\node_modules" "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules\node_modules"'
+  Pop $0
+
+  ${If} $0 == 0
+    ; Verify junction creation with fsutil
+    nsExec::Exec 'fsutil reparsepoint query "$INSTDIR\app\node_modules"'
+    Pop $1
+    ${If} $1 == 0
+      DetailPrint "Junction created and verified successfully"
+      Push "Junction verified: app\node_modules -> app-modules\node_modules"
+      Call LogWrite
+    ${Else}
+      DetailPrint "ERROR: Junction creation failed verification"
+      Push "ERROR: fsutil verification failed"
+      Call LogWrite
+      MessageBox MB_OK "ERROR: Junction verification failed.$\n$\nThe application may not work correctly."
+    ${EndIf}
+  ${Else}
+    DetailPrint "ERROR: mklink failed with exit code $0"
+    Push "ERROR: Junction creation failed (exit code $0)"
+    Call LogWrite
+    MessageBox MB_YESNO "Junction creation failed.$\n$\nContinue anyway? (Application may not work correctly)" IDYES junction_continue
+    Abort
+  junction_continue:
+  ${EndIf}
+
   ; Install @electron/rebuild for native module rebuilding
   DetailPrint "Installing @electron/rebuild..."
   Push "Installing @electron/rebuild"
   Call LogWrite
 
-  nsExec::ExecToLog '"$CommonAppDataDir\RDO-Map-Overlay\runtime\node\npm.cmd" install --save-dev --prefix="$INSTDIR\app" @electron/rebuild electron@27.0.0'
+  nsExec::ExecToLog '"$CommonAppDataDir\RDO-Map-Overlay\runtime\node\npm.cmd" install --save-dev --prefix="$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules" @electron/rebuild electron@27.0.0'
   Pop $0
 
   ${If} $0 == 0
@@ -479,8 +494,8 @@ Section "Core Components" SEC_CORE
     Push "Running electron-rebuild"
     Call LogWrite
 
-    ; Use the installed electron-rebuild (in shared location due to .npmrc)
-    nsExec::ExecToLog '"$CommonAppDataDir\RDO-Map-Overlay\runtime\node\node.exe" "$CommonAppDataDir\RDO-Map-Overlay\runtime\node_modules\@electron\rebuild\lib\cli.js" --force --module-dir="$INSTDIR\app"'
+    ; Use the installed electron-rebuild (in shared location)
+    nsExec::ExecToLog '"$CommonAppDataDir\RDO-Map-Overlay\runtime\node\node.exe" "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules\node_modules\@electron\rebuild\lib\cli.js" --force --module-dir="$INSTDIR\app"'
     Pop $0
 
     ${If} $0 == 0
@@ -648,10 +663,8 @@ Section "Uninstall"
   Delete "$INSTDIR\Uninstall.exe"
   Delete "$INSTDIR\install.log"
 
-  ; Remove .npmrc configuration
-  Delete "$INSTDIR\app\.npmrc"
-
-  ; Remove app directory (node_modules is in ProgramData, not here)
+  ; Remove app directory (node_modules junction points to ProgramData)
+  ; RMDir will remove the junction without deleting the target
   RMDir /r "$INSTDIR\app"
   RMDir /r "$INSTDIR\data\cache"
   Delete "$INSTDIR\data\*.json"
