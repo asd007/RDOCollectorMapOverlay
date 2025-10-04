@@ -14,7 +14,7 @@ from typing import Dict, Optional
 class TestDataCollector:
     """Collects real gameplay screenshots with matching metadata for testing."""
 
-    def __init__(self, output_dir: str = "tests/test_data", max_per_zoom: int = 3):
+    def __init__(self, output_dir: str = "tests/data", max_per_zoom: int = 3):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 

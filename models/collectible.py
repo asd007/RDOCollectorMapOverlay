@@ -1,7 +1,6 @@
 """Data models for collectibles"""
 
 from dataclasses import dataclass
-from typing import Optional
 from enum import Enum
 
 
@@ -27,6 +26,8 @@ class Collectible:
     category: str
     tool: int = 0
     height: int = 0
-    
+    help: str = ''
+    video: str = ''
+
     def __hash__(self):
         return hash((self.x, self.y, self.type, self.name))

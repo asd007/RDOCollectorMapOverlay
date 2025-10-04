@@ -23,7 +23,6 @@ from typing import List, Dict, Optional, Tuple
 from dataclasses import dataclass
 
 from matching.simple_matcher import SimpleMatcher
-from matching.scale_predictor import ScalePredictor, ScalePrediction
 
 
 @dataclass
@@ -50,7 +49,7 @@ class CascadeScaleMatcher:
     def __init__(self,
                  base_matcher: SimpleMatcher,
                  cascade_levels: List[ScaleConfig],
-                 use_scale_prediction: bool = True,
+                 use_scale_prediction: bool = False,
                  verbose: bool = False):
         """
         Initialize cascade matcher.
@@ -58,16 +57,12 @@ class CascadeScaleMatcher:
         Args:
             base_matcher: SimpleMatcher instance with pre-computed map features
             cascade_levels: List of scale configurations (tried in order)
-            use_scale_prediction: Enable intelligent scale ordering based on feature analysis
+            use_scale_prediction: Deprecated (kept for backward compatibility)
             verbose: Print detailed timing and fallback info
         """
         self.base_matcher = base_matcher
         self.cascade_levels = cascade_levels
-        self.use_scale_prediction = use_scale_prediction
         self.verbose = verbose
-
-        # Initialize scale predictor if enabled
-        self.scale_predictor = ScalePredictor() if use_scale_prediction else None
 
         # Validate cascade levels
         if not cascade_levels:
@@ -83,8 +78,6 @@ class CascadeScaleMatcher:
             print(f"CascadeScaleMatcher initialized with {len(self.cascade_levels)} levels:")
             for i, level in enumerate(self.default_cascade_levels, 1):
                 print(f"  {i}. {level}")
-            if use_scale_prediction:
-                print("  Scale prediction ENABLED for intelligent ordering")
 
     def match(self, screenshot_preprocessed: np.ndarray) -> Optional[Dict]:
         """
@@ -107,37 +100,15 @@ class CascadeScaleMatcher:
             'prediction_ms': 0
         }
 
-        # Determine scale order based on prediction if enabled
-        if self.use_scale_prediction and self.scale_predictor:
-            pred_start = time.time()
-            prediction = self.scale_predictor.predict_scale(screenshot_preprocessed)
-            cascade_info['prediction_ms'] = (time.time() - pred_start) * 1000
-            cascade_info['prediction_used'] = True
-            cascade_info['prediction_metrics'] = prediction.feature_metrics
-
-            # Reorder cascade levels based on prediction
-            ordered_levels = []
-            for recommended_scale in prediction.recommended_scales:
-                if recommended_scale in self.scale_lookup:
-                    ordered_levels.append(self.scale_lookup[recommended_scale])
-
-            # Add any missing levels at the end
-            for level in self.default_cascade_levels:
-                if level not in ordered_levels:
-                    ordered_levels.append(level)
-
-            if self.verbose:
-                print(f"  Scale prediction ({cascade_info['prediction_ms']:.1f}ms): {prediction.feature_metrics['scale_reason']}")
-                print(f"  Recommended order: {[l.scale for l in ordered_levels]}")
-        else:
-            ordered_levels = self.default_cascade_levels
+        # Use default scale ordering (smallest/fastest first)
+        ordered_levels = self.default_cascade_levels
 
         for i, level in enumerate(ordered_levels):
             level_start = time.time()
 
             # Optimized: Resize in grayscale BEFORE preprocessing
             # screenshot_preprocessed is actually RAW screenshot (not preprocessed yet)
-            # This function does: grayscale → resize → posterize+CLAHE+LUT
+            # This function does: grayscale  ->  resize  ->  posterize+CLAHE+LUT
             from core.image_preprocessing import preprocess_with_resize
 
             screenshot_scaled = preprocess_with_resize(

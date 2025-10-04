@@ -28,7 +28,7 @@ def find_rdr2_window():
     def enum_handler(hwnd, ctx):
         if win32gui.IsWindowVisible(hwnd):
             title = win32gui.GetWindowText(hwnd)
-            if title and 'red dead redemption' in title.lower():
+            if title and title.lower() == 'red dead redemption 2':
                 windows.append(title)
 
     win32gui.EnumWindows(enum_handler, None)
@@ -47,6 +47,22 @@ def create_app(state: OverlayState):
 
     # Store socketio reference in state for continuous capture to emit events
     state.socketio = socketio
+
+    # WebSocket connection handler - send initial state
+    @socketio.on('connect')
+    def handle_connect():
+        """Send initial window state when client connects"""
+        print(f"[WebSocket] Client connected")
+        print(f"[WebSocket] state.game_focus_manager = {state.game_focus_manager}")
+        if state.game_focus_manager:
+            is_active = state.game_focus_manager.get_rdr2_state()
+            print(f"[WebSocket] RDR2 state: {is_active}")
+            emit('window-focus-changed', {
+                'is_rdr2_active': is_active
+            })
+            print(f"[WebSocket] [OK] Sent initial RDR2 state: {is_active}")
+        else:
+            print(f"[WebSocket] [ERROR] ERROR: game_focus_manager is None, cannot send initial state!")
     
     @app.route('/status', methods=['GET'])
     def get_status():
@@ -152,7 +168,7 @@ def create_app(state: OverlayState):
             screenshot_time = (time.time() - screenshot_start) * 1000
 
             # Perform matching with RAW image
-            # Cascade matcher will handle: grayscale → resize → preprocess per level
+            # Cascade matcher will handle: grayscale  ->  resize  ->  preprocess per level
             matching_start = time.time()
             result = state.matcher.match(img)  # Raw BGR image
             matching_time = (time.time() - matching_start) * 1000

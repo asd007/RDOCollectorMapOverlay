@@ -35,26 +35,26 @@ class ImagePreprocessor:
         Create custom LUT to enhance terrain edges.
 
         Based on Q10 histogram analysis:
-        - Lightest grays (200+): flat terrain → push to white
-        - 2nd lightest (180-199): level changes → pull down to create hard edges
-        - Mid-dark (100-179): text/roads → mid-gray
-        - Darkest (<100): → black
+        - Lightest grays (200+): flat terrain  ->  push to white
+        - 2nd lightest (180-199): level changes  ->  pull down to create hard edges
+        - Mid-dark (100-179): text/roads  ->  mid-gray
+        - Darkest (<100):  ->  black
 
         Returns:
             256-element LUT array
         """
         lut = np.zeros(256, dtype=np.uint8)
 
-        # Darkest: 0-99 → 0-10
+        # Darkest: 0-99  ->  0-10
         lut[0:100] = np.linspace(0, 10, 100).astype(np.uint8)
 
-        # Mid-dark: 100-179 → 11-50
+        # Mid-dark: 100-179  ->  11-50
         lut[100:180] = np.linspace(11, 50, 80).astype(np.uint8)
 
-        # 2nd lightest: 180-199 → 51-100 (create hard edge for level changes)
+        # 2nd lightest: 180-199  ->  51-100 (create hard edge for level changes)
         lut[180:200] = np.linspace(51, 100, 20).astype(np.uint8)
 
-        # Lightest (flat terrain): 200-255 → 220-255 (push to white)
+        # Lightest (flat terrain): 200-255  ->  220-255 (push to white)
         lut[200:256] = np.linspace(220, 255, 56).astype(np.uint8)
 
         return lut

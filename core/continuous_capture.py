@@ -13,7 +13,6 @@ from collections import deque
 
 from matching.viewport_tracker import ViewportKalmanTracker, Viewport
 from core.map_detector import is_map_visible
-from tests.test_data_collector import TestDataCollector
 
 
 @dataclass
@@ -198,7 +197,7 @@ class ContinuousCaptureService:
         if self.thread:
             self.thread.join(timeout=2.0)
 
-    def enable_test_collection(self, output_dir: str = "tests/test_data", max_per_zoom: int = 3):
+    def enable_test_collection(self, output_dir: str = "tests/data", max_per_zoom: int = 3):
         """
         Enable automatic test data collection for outlier frames.
 
@@ -206,6 +205,8 @@ class ContinuousCaptureService:
             output_dir: Directory to save test data
             max_per_zoom: Maximum samples to collect per zoom level (default: 3)
         """
+        # Import only when needed to avoid production dependency on test code
+        from tests.test_data_collector import TestDataCollector
         self.test_collector = TestDataCollector(output_dir, max_per_zoom=max_per_zoom)
         self.collect_test_data = True
 
@@ -300,7 +301,7 @@ class ContinuousCaptureService:
         map_detect_time = 0
 
         # Pass RAW screenshot to cascade matcher
-        # Cascade matcher will handle: grayscale → resize → preprocess per level
+        # Cascade matcher will handle: grayscale  ->  resize  ->  preprocess per level
         match_start = time.time()
         result = self.matcher.match(screenshot)  # Raw screenshot (BGR)
         match_time = (time.time() - match_start) * 1000
