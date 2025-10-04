@@ -59,10 +59,10 @@ jobs:
     # === VERSION DETERMINATION ===
 
     - name: Install GitVersion
-      if: steps.cache-gitversion.outputs.cache-hit != 'true'
       uses: gittools/actions/gitversion/setup@v0
       with:
         versionSpec: '5.x'
+        # Setup action is fast if already cached - ensures PATH is set correctly
 
     - name: Determine Version
       id: gitversion
