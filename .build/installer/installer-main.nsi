@@ -768,11 +768,10 @@ Section "Uninstall"
     RMDir "$INSTDIR\app\node_modules"
   no_junction_to_remove:
 
-  ; Now safe to remove app directory (junction already removed)
-  RMDir /r "$INSTDIR\app"
-  RMDir /r "$INSTDIR\data\cache"
-  Delete "$INSTDIR\data\*.json"
-  RMDir "$INSTDIR\data"
+  ; Use Windows native rmdir for fast deletion (deletes entire folders instantly)
+  DetailPrint "Removing application files..."
+  nsExec::Exec 'cmd /c rmdir /s /q "$INSTDIR\app"'
+  nsExec::Exec 'cmd /c rmdir /s /q "$INSTDIR\data"'
 
   ; Remove install directory if empty
   RMDir "$INSTDIR"
@@ -786,12 +785,9 @@ Section "Uninstall"
     DetailPrint "  - Node.js dependencies: ~200 MB"
     DetailPrint "  - Map data: ~167 MB"
   ${Else}
-    ; Remove all shared components from ProgramData
+    ; Remove all shared components from ProgramData (fast deletion)
     DetailPrint "Removing shared components from: $CommonAppDataDir\RDO-Map-Overlay\"
-    RMDir /r "$CommonAppDataDir\RDO-Map-Overlay\runtime"
-    Delete "$CommonAppDataDir\RDO-Map-Overlay\data\rdr2_map_hq.png"
-    RMDir "$CommonAppDataDir\RDO-Map-Overlay\data"
-    RMDir "$CommonAppDataDir\RDO-Map-Overlay"
+    nsExec::Exec 'cmd /c rmdir /s /q "$CommonAppDataDir\RDO-Map-Overlay"'
   ${EndIf}
 
   ; Remove shortcuts
