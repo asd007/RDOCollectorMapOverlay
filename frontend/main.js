@@ -43,6 +43,18 @@ async function startBackend() {
     return true;
   }
 
+  // Check if backend is already running on default port
+  console.log('[Backend] Checking for existing backend on port 5000...');
+  try {
+    await axios.get(`http://127.0.0.1:5000/status`, { timeout: 1000 });
+    console.log('[Backend] Found existing backend on port 5000, using it');
+    backendPort = 5000;
+    return true;
+  } catch (e) {
+    // Backend not running, start it
+    console.log('[Backend] No existing backend found, starting new instance...');
+  }
+
   // Production: Start Python backend as child process
   console.log('[Backend] Starting Python backend...');
 
@@ -80,21 +92,24 @@ async function startBackend() {
     }
   });
 
-  // Wait for backend to be ready
-  console.log('[Backend] Waiting for backend to respond...');
-  for (let i = 0; i < 30; i++) {
+  // Wait for backend to be ready (60 seconds timeout, more verbose logging)
+  console.log('[Backend] Waiting for backend to initialize (this may take 10-30 seconds on first launch)...');
+  for (let i = 0; i < 60; i++) {
     await new Promise(r => setTimeout(r, 1000));
 
     try {
-      await axios.get(`http://127.0.0.1:${backendPort}/status`, { timeout: 2000 });
+      await axios.get(`http://127.0.0.1:${backendPort}/status`, { timeout: 3000 });
       console.log(`[Backend] Ready on port ${backendPort}`);
       return true;
     } catch (e) {
       // Not ready yet, continue waiting
+      if (i > 0 && i % 10 === 0) {
+        console.log(`[Backend] Still initializing... (${i}s elapsed)`);
+      }
     }
   }
 
-  throw new Error('Backend failed to start within 30 seconds');
+  throw new Error('Backend failed to start within 60 seconds. Check logs for details.');
 }
 
 function stopBackend() {
