@@ -171,6 +171,8 @@ function showError(title, message) {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
+    x: 0,  // Position at screen origin
+    y: 0,
     width: 1920,
     height: 1080,
     transparent: true,

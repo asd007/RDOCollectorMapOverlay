@@ -784,6 +784,11 @@ async function pollCursor() {
 
     const hoveredItem = findCollectibleAt(cursorPos.x, cursorPos.y);
 
+    // Debug logging when hovering a collectible
+    if (hoveredItem && hoveredItem !== currentHoveredCollectible) {
+      console.log(`[Cursor] Cursor at (${cursorPos.x}, ${cursorPos.y}) hovering collectible at (${hoveredItem.x}, ${hoveredItem.y})`);
+    }
+
     // Check if hover state changed
     if (hoveredItem !== currentHoveredCollectible) {
       if (hoveredItem) {
