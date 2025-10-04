@@ -92,9 +92,9 @@ async function startBackend() {
     }
   });
 
-  // Wait for backend to be ready (60 seconds timeout, more verbose logging)
-  console.log('[Backend] Waiting for backend to initialize (this may take 10-30 seconds on first launch)...');
-  for (let i = 0; i < 60; i++) {
+  // Wait for backend to be ready (2 minute timeout for low-end systems)
+  console.log('[Backend] Waiting for backend to initialize (this may take 10-60 seconds, up to 2 minutes on low-end systems)...');
+  for (let i = 0; i < 120; i++) {
     await new Promise(r => setTimeout(r, 1000));
 
     try {
@@ -109,7 +109,7 @@ async function startBackend() {
     }
   }
 
-  throw new Error('Backend failed to start within 60 seconds. Check logs for details.');
+  throw new Error('Backend failed to start within 2 minutes. Check logs for details.');
 }
 
 function stopBackend() {
