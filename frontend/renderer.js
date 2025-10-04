@@ -222,6 +222,32 @@ let videoPlayerFrame = null;
 let youtubePlayer = null;
 let isYouTubeAPIReady = false;
 let videoCloseHandler = null; // Track close button handler for cleanup
+let embedCheckCache = new Map(); // Cache oEmbed check results to avoid repeated API calls
+
+// Check if video is embeddable using YouTube oEmbed API
+async function checkVideoEmbeddable(videoId) {
+  // Check cache first
+  if (embedCheckCache.has(videoId)) {
+    return embedCheckCache.get(videoId);
+  }
+
+  try {
+    const response = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' }
+    });
+
+    const embeddable = response.ok;
+    embedCheckCache.set(videoId, embeddable);
+
+    console.log(`[YouTube Pre-check] Video ${videoId} embeddable: ${embeddable}`);
+    return embeddable;
+  } catch (error) {
+    // If oEmbed fails, assume embeddable (let the player try)
+    console.warn('[YouTube Pre-check] oEmbed check failed, assuming embeddable:', error);
+    return true;
+  }
+}
 
 // Load YouTube IFrame API
 function loadYouTubeAPI() {
@@ -315,6 +341,25 @@ async function showVideoPlayer(videoUrl, collectibleName) {
     console.log(`[Video Player] Starting video at ${startSeconds} seconds (${Math.floor(startSeconds / 60)}:${String(startSeconds % 60).padStart(2, '0')})`);
   }
 
+  // Pre-check if video is embeddable before creating player UI
+  const isEmbeddable = await checkVideoEmbeddable(videoId);
+
+  if (!isEmbeddable) {
+    // Video cannot be embedded - open directly in external browser with timestamp
+    let externalUrl = `https://www.youtube.com/watch?v=${videoId}`;
+    if (startSeconds > 0) {
+      externalUrl += `&t=${startSeconds}s`;
+    }
+
+    console.log('[Video Player] Video not embeddable (pre-check failed), opening in browser:', externalUrl);
+    shell.openExternal(externalUrl);
+
+    // Re-enable click-through
+    isClickThroughEnabled = true;
+    await ipcRenderer.invoke('set-click-through', true);
+    return; // Don't create player UI
+  }
+
   // Create player container HTML
   videoPlayerFrame.innerHTML = `
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -372,14 +417,14 @@ async function showVideoPlayer(videoUrl, collectibleName) {
           onError: (event) => {
             console.error('[YouTube Player] Error code:', event.data);
 
-            // Error 150/101/100 = embedding disabled by video owner
-            if (event.data === 150 || event.data === 101 || event.data === 100) {
+            // Error 150/153/101/100 = embedding disabled by video owner
+            if (event.data === 150 || event.data === 153 || event.data === 101 || event.data === 100) {
               // Fallback: open in external browser (preserve timestamp)
               let fallbackUrl = `https://www.youtube.com/watch?v=${videoId}`;
               if (startSeconds > 0) {
                 fallbackUrl += `&t=${startSeconds}s`;
               }
-              console.log('[YouTube Player] Embedding disabled, opening in browser:', fallbackUrl);
+              console.log('[YouTube Player] Embedding disabled (error ' + event.data + '), opening in browser:', fallbackUrl);
 
               // Show user-friendly message
               const playerContainer = document.getElementById('youtube-player');
