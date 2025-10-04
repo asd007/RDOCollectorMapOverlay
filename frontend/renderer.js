@@ -136,8 +136,8 @@ function createTooltip() {
   document.body.appendChild(tooltip);
 }
 
-// Show tooltip for collectible (called from backend with pre-calculated position)
-function showTooltip(collectible, tooltipX, tooltipY) {
+// Show tooltip for collectible
+function showTooltip(collectible) {
   if (!tooltip) return;
 
   // Cancel any pending hide when new tooltip appears
@@ -172,11 +172,23 @@ function showTooltip(collectible, tooltipX, tooltipY) {
   </div>`;
 
   tooltip.innerHTML = tooltipHTML;
+
+  // Position off-screen to measure actual dimensions
+  tooltip.style.left = '-9999px';
+  tooltip.style.top = '-9999px';
   tooltip.style.display = 'block';
 
-  // Use position
-  tooltip.style.left = tooltipX + 'px';
-  tooltip.style.top = tooltipY + 'px';
+  // Get actual rendered dimensions
+  const tooltipRect = tooltip.getBoundingClientRect();
+  const actualWidth = tooltipRect.width;
+  const actualHeight = tooltipRect.height;
+
+  // Recalculate position with actual dimensions
+  const adjustedPos = calculateTooltipPosition(collectible.x, collectible.y, actualWidth, actualHeight);
+
+  // Position correctly
+  tooltip.style.left = adjustedPos.x + 'px';
+  tooltip.style.top = adjustedPos.y + 'px';
 
   // Right-click handled by backend click observer + hit-testing
   // (no need for oncontextmenu handler)
@@ -792,10 +804,9 @@ async function pollCursor() {
     // Check if hover state changed
     if (hoveredItem !== currentHoveredCollectible) {
       if (hoveredItem) {
-        // Started hovering a collectible - show tooltip near the marker, not cursor
+        // Started hovering a collectible - show tooltip near the marker
         currentHoveredCollectible = hoveredItem;
-        const tooltipPos = calculateTooltipPosition(hoveredItem.x, hoveredItem.y);
-        showTooltip(hoveredItem, tooltipPos.x, tooltipPos.y);
+        showTooltip(hoveredItem);
       } else {
         // Stopped hovering - hide tooltip
         currentHoveredCollectible = null;
@@ -807,17 +818,15 @@ async function pollCursor() {
   }
 }
 
-function calculateTooltipPosition(collectibleX, collectibleY) {
+function calculateTooltipPosition(collectibleX, collectibleY, tooltipWidth, tooltipHeight) {
   /**
    * Calculate tooltip position with corner centered on collectible,
    * minimizing overlap with other collectibles.
    */
   const screenWidth = 1920;
   const screenHeight = 1080;
-  const tooltipWidth = 450;
-  const tooltipHeight = 300;
 
-  console.log(`[Tooltip] Calculating position for collectible at (${collectibleX}, ${collectibleY})`);
+  console.log(`[Tooltip] Calculating position for collectible at (${collectibleX}, ${collectibleY}), tooltip size: ${tooltipWidth}x${tooltipHeight}`);
 
   // Try 4 positions: each corner of tooltip centered on collectible
   const candidates = [
