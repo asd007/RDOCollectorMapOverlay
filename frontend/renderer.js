@@ -14,6 +14,7 @@ console.log = function(...args) {
 const { ipcRenderer, shell } = require('electron');
 const axios = require('axios');
 const io = require('socket.io-client');
+const PIXI = require('pixi.js');
 
 // Configuration - backend URL will be set dynamically
 let BACKEND_URL = 'http://127.0.0.1:5000';  // Default fallback
@@ -47,9 +48,24 @@ function initializeConnection() {
     }
 })();
 
-// Canvas setup
+// PixiJS setup (replaces Canvas2D for GPU-accelerated rendering)
 const canvas = document.getElementById('overlay-canvas');
-const ctx = canvas.getContext('2d', { alpha: true });
+const pixiApp = new PIXI.Application({
+  view: canvas,
+  width: window.innerWidth,
+  height: window.innerHeight,
+  backgroundAlpha: 0, // Transparent background
+  antialias: true,
+  resolution: window.devicePixelRatio || 1,
+  autoDensity: true,
+});
+
+// PixiJS containers
+const collectiblesContainer = new PIXI.Container();
+pixiApp.stage.addChild(collectiblesContainer);
+
+// Sprite pool for collectibles (reuse sprites instead of creating new ones)
+const spritePool = new Map(); // key: collectibleId, value: PIXI.Sprite
 
 // UI elements
 const statusBar = document.getElementById('status-bar');
@@ -666,13 +682,11 @@ function updateCollectedDisplay() {
 
 // Canvas mouse event handlers removed - backend observes clicks globally, frontend does hit-testing
 
-// Resize canvas to window size
+// Resize PixiJS renderer to window size
 function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  pixiApp.renderer.resize(window.innerWidth, window.innerHeight);
 }
 
-resizeCanvas();
 window.addEventListener('resize', resizeCanvas);
 
 // Load all collectibles once (called on startup)
@@ -2064,34 +2078,19 @@ function getCollectibleSprite(type, isCollected) {
 
 // Optimized draw function using sprite caching
 function drawOverlay() {
-  // Clear canvas (fast operation)
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  // Hide/show PixiJS stage based on overlay visibility
+  collectiblesContainer.visible = overlayVisible;
 
   if (!overlayVisible) {
     return;
   }
 
-  // Draw a subtle indicator that overlay is active even with no collectibles
-  if (currentCollectibles.length === 0 && isTracking) {
-    ctx.save();
-    ctx.globalAlpha = 0.3;
-    ctx.fillStyle = '#fbbf24';
-    ctx.font = '10px Arial';
-    ctx.textAlign = 'left';
-    ctx.fillText('Overlay Active - No items in view', 10, canvas.height - 10);
-    ctx.restore();
-    return;
-  }
+  // Set global opacity for all collectibles
+  collectiblesContainer.alpha = overlayOpacity;
 
-  // Set global opacity (applied to all sprites)
-  ctx.globalAlpha = overlayOpacity;
-
-  // Batch draw all collectibles using cached sprites (FAST)
-  let drawnCount = 0;
-
-  // Optimization: Disable shadow for batch drawing (sprites already have shadows)
-  ctx.shadowColor = 'transparent';
-  ctx.shadowBlur = 0;
+  // Create Set of current collectible IDs for efficient lookup
+  const currentIds = new Set();
+  const visibleCollectibles = [];
 
   for (const col of currentCollectibles) {
     // Map shortened field names from backend
@@ -2103,30 +2102,44 @@ function drawOverlay() {
       continue; // Skip hidden categories
     }
 
-    const isCollected = trackerState.collectedItems[getCollectibleId(col)];
-
     // Ensure coordinates are valid
-    if (typeof col.x !== 'number' || typeof col.y !== 'number' ||
-        col.x < 0 || col.y < 0 || col.x > canvas.width || col.y > canvas.height) {
+    if (typeof col.x !== 'number' || typeof col.y !== 'number') {
       continue;
     }
 
-    // Get pre-rendered sprite (cached, no rendering cost)
-    const sprite = getCollectibleSprite(type, isCollected);
-
-    // Draw sprite to main canvas (FAST: single bitmap copy)
-    // Center sprite on collectible position
-    const drawX = col.x - SPRITE_SIZE / 2;
-    const drawY = col.y - SPRITE_SIZE / 2;
-
-    // Use drawImage for hardware-accelerated blit
-    ctx.drawImage(sprite, drawX, drawY);
-
-    drawnCount++;
+    const isCollected = trackerState.collectedItems[getCollectibleId(col)];
+    const id = `${col.map_x}_${col.map_y}_${type}`;
+    currentIds.add(id);
+    visibleCollectibles.push({ col, id, type, isCollected });
   }
 
-  // Reset opacity
-  ctx.globalAlpha = 1.0;
+  // Remove sprites that are no longer visible (efficient cleanup)
+  for (const [id, sprite] of spritePool.entries()) {
+    if (!currentIds.has(id)) {
+      collectiblesContainer.removeChild(sprite);
+      sprite.destroy();
+      spritePool.delete(id);
+    }
+  }
+
+  // Update/create sprites for visible collectibles
+  for (const { col, id, type, isCollected } of visibleCollectibles) {
+    let pixiSprite = spritePool.get(id);
+
+    if (!pixiSprite) {
+      // Create new PixiJS sprite from cached Canvas2D sprite
+      const canvasSprite = getCollectibleSprite(type, isCollected);
+      const texture = PIXI.Texture.from(canvasSprite);
+      pixiSprite = new PIXI.Sprite(texture);
+      pixiSprite.anchor.set(0.5); // Center anchor
+      collectiblesContainer.addChild(pixiSprite);
+      spritePool.set(id, pixiSprite);
+    }
+
+    // Update sprite position (PixiJS handles batching automatically)
+    pixiSprite.x = col.x;
+    pixiSprite.y = col.y;
+  }
 }
 
 // Refresh data
