@@ -14,6 +14,10 @@ class CollectiblesLoader:
     # Cache for language data
     _lang_data_cache = None
 
+    # Track last cycle date for change detection
+    _last_cycle_date = None
+    _last_cycles = None
+
     @staticmethod
     def _load_lang_data():
         """Load language data (hints and video links) from en.json"""
@@ -110,7 +114,44 @@ class CollectiblesLoader:
             today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
             for entry in cycles_data:
                 if entry.get('date') == today:
+                    # Update cycle tracking
+                    CollectiblesLoader._last_cycle_date = today
+                    CollectiblesLoader._last_cycles = entry
                     return entry
         except:
             pass
         return {}
+
+    @staticmethod
+    def check_cycle_changed() -> bool:
+        """
+        Check if the daily cycle has changed since last load.
+
+        Returns:
+            True if cycle changed (need to reload collectibles)
+        """
+        try:
+            response = requests.get(
+                EXTERNAL_URLS.ROPKE_CYCLES_API,
+                timeout=COLLECTIBLES.API_TIMEOUT_SECONDS
+            )
+            cycles_data = response.json()
+            today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+
+            # Check if date changed
+            if CollectiblesLoader._last_cycle_date != today:
+                print(f"[Cycle Check] Date changed: {CollectiblesLoader._last_cycle_date} -> {today}")
+                return True
+
+            # Check if cycles changed for today
+            for entry in cycles_data:
+                if entry.get('date') == today:
+                    if CollectiblesLoader._last_cycles != entry:
+                        print(f"[Cycle Check] Cycles updated for {today}")
+                        return True
+                    return False  # Same date, same cycles
+
+            return False  # Today not found in cycles data
+        except Exception as e:
+            print(f"[Cycle Check] Error checking cycles: {e}")
+            return False  # Don't reload on error

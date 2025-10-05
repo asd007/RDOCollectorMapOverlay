@@ -2,8 +2,9 @@
 
 import cv2
 import numpy as np
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple
 from matching.spatial_feature_selector import SpatialFeatureSelector
+from matching.spatial_keypoint_index import SpatialKeypointIndex
 
 
 class SimpleMatcher:
@@ -196,13 +197,23 @@ class SimpleMatcher:
             self.desc_map = desc
             print(f"Reference map features: {len(self.kp_map)}")
 
-    def match(self, screenshot: np.ndarray, reference_map: np.ndarray = None) -> Dict:
+        # Build spatial index for ROI-based filtering
+        print("Building spatial index for ROI filtering...")
+        self.spatial_index = SpatialKeypointIndex(self.kp_map)
+        print(f"Spatial index ready for {len(self.kp_map)} keypoints")
+
+    def match(self, screenshot: np.ndarray, reference_map: np.ndarray = None,
+              roi: Optional[Tuple[float, float, float, float]] = None,
+              roi_expansion: float = 1.1) -> Dict:
         """
         Match screenshot against reference map.
 
         Args:
             screenshot: Preprocessed screenshot image (grayscale)
             reference_map: Preprocessed reference map (optional, used if features not pre-computed)
+            roi: Optional ROI for filtering map features (center_x, center_y, viewport_w, viewport_h)
+                 If provided, only matches against map keypoints within expanded region
+            roi_expansion: ROI expansion factor (default 1.1 = 10% larger, 1.05 = 5% larger)
 
         Returns:
             Dictionary with match results:
@@ -211,6 +222,8 @@ class SimpleMatcher:
                 - confidence: match confidence (inlier ratio)
                 - inliers: number of inlier matches
                 - homography: 3x3 homography matrix (or None)
+                - roi_filter_applied: bool (True if ROI filtering was used)
+                - roi_keypoints: int (number of keypoints in ROI, if filtered)
         """
         # Detect features in screenshot
         kp, desc = self.detector.detectAndCompute(screenshot, None)
@@ -247,8 +260,37 @@ class SimpleMatcher:
             if reference_map is None:
                 return self._failed_result("No reference map features available")
             kp_map, desc_map = self.detector.detectAndCompute(reference_map, None)
+            roi_filter_applied = False
+            roi_keypoints = len(kp_map)
         else:
-            kp_map, desc_map = self.kp_map, self.desc_map
+            # Apply ROI filtering if provided
+            if roi and hasattr(self, 'spatial_index'):
+                center_x, center_y, viewport_w, viewport_h = roi
+
+                # Query spatial index with configurable expansion
+                roi_indices = self.spatial_index.query_viewport_expanded(
+                    center_x, center_y, viewport_w, viewport_h, expansion=roi_expansion
+                )
+
+                if len(roi_indices) > 0:
+                    # Filter keypoints and descriptors to ROI
+                    kp_map = [self.kp_map[i] for i in roi_indices]
+                    desc_map = self.desc_map[roi_indices]
+                    roi_filter_applied = True
+                    roi_keypoints = len(roi_indices)
+
+                    print(f"[ROI Filter] Using {roi_keypoints}/{len(self.kp_map)} keypoints "
+                          f"({100*roi_keypoints/len(self.kp_map):.1f}%)")
+                else:
+                    # ROI too restrictive, fall back to full search
+                    print(f"[ROI Filter] No keypoints in ROI, falling back to full search")
+                    kp_map, desc_map = self.kp_map, self.desc_map
+                    roi_filter_applied = False
+                    roi_keypoints = len(kp_map)
+            else:
+                kp_map, desc_map = self.kp_map, self.desc_map
+                roi_filter_applied = False
+                roi_keypoints = len(kp_map)
 
         if desc_map is None or len(kp_map) == 0:
             return self._failed_result("No features detected in reference map")
@@ -318,7 +360,9 @@ class SimpleMatcher:
             'confidence': float(confidence),
             'inliers': int(inliers),
             'homography': H,
-            'total_matches': len(good_matches)
+            'total_matches': len(good_matches),
+            'roi_filter_applied': roi_filter_applied,
+            'roi_keypoints': roi_keypoints
         }
 
     def _select_features_hybrid(self, keypoints, image_shape, target_count=300, min_per_cell_ratio=0.4):

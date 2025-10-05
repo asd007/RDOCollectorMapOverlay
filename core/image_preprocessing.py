@@ -180,6 +180,30 @@ def preprocess_for_matching(img: np.ndarray, posterize_before_gray: bool = False
     return PREPROCESSOR.preprocess(img, posterize_before_gray=posterize_before_gray)
 
 
+def simple_grayscale_resize(img: np.ndarray, scale: float) -> np.ndarray:
+    """
+    Fast grayscale + resize ONLY (no preprocessing).
+    Used for motion prediction where we only need phase correlation.
+
+    Args:
+        img: Input image (color or grayscale)
+        scale: Scale factor (e.g. 0.5)
+
+    Returns:
+        Grayscale resized image (no preprocessing)
+    """
+    # Convert to grayscale if needed
+    if len(img.shape) == 3:
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = img
+
+    # Resize
+    h, w = gray.shape
+    resized = cv2.resize(gray, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+    return resized
+
+
 def preprocess_with_resize(img: np.ndarray, target_size: tuple = None, scale: float = None) -> np.ndarray:
     """
     Optimized preprocessing: Resize in grayscale BEFORE posterization.

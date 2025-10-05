@@ -157,16 +157,21 @@ function showError(title, message) {
 }
 
 function createWindow() {
+  // Get primary display dimensions
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width, height } = primaryDisplay.bounds;
+
   mainWindow = new BrowserWindow({
-    x: 0,  // Position at screen origin
+    x: 0,
     y: 0,
-    width: 1920,
-    height: 1080,
+    width: width,
+    height: height,
     transparent: true,
     frame: false,
     alwaysOnTop: true,
     skipTaskbar: true,
     resizable: false,
+    fullscreen: true,
     title: 'RDO Map Overlay', // Set explicit title for backend detection
     // Additional stability options
     show: false, // Don't show until ready
@@ -292,6 +297,13 @@ app.whenReady().then(async () => {
   globalShortcut.register('F6', () => {
     if (mainWindow) {
       mainWindow.webContents.send('refresh-data');
+    }
+  });
+
+  // F5 - Toggle collection tracker
+  globalShortcut.register('F5', () => {
+    if (mainWindow) {
+      mainWindow.webContents.send('toggle-tracker');
     }
   });
 

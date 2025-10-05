@@ -102,7 +102,7 @@ class ServerConfig:
     DEBUG: bool = False
     CORS_ENABLED: bool = True
     CONTINUOUS_CAPTURE: bool = True  # Enable continuous background capture
-    CAPTURE_FPS: int = 5  # Target capture rate (5 fps recommended)
+    CAPTURE_FPS: int = 60  # Target capture rate for smooth panning (60 fps = 16.7ms interval)
     USE_ROI_TRACKING: bool = False  # ROI tracking not yet implemented (would need map cropping)
 
 

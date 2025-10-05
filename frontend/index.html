@@ -8,6 +8,9 @@
       margin: 0;
       padding: 0;
       box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      cursor: default;
     }
 
     body {
@@ -16,6 +19,24 @@
       overflow: hidden;
       background: transparent;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    /* Ensure text elements don't interfere with pointer events */
+    span, p, div, h1, h2, h3, h4, h5, h6, label {
+      pointer-events: none;
+    }
+
+    /* But allow interactive containers to handle events */
+    button, input, a, .tracker-set, .tracker-category, .tracker-item-compact,
+    .tracker-header, .tracker-tab, .tracker-eye-icon {
+      pointer-events: auto;
+      cursor: pointer;
+    }
+
+    /* Checkbox and item name should not capture events - let parent handle */
+    .tracker-item-checkbox, .tracker-item-name {
+      pointer-events: none;
+      cursor: pointer;
     }
 
     #overlay-canvas {
@@ -234,61 +255,333 @@
     }
 
     /* Cycle Timer Widget */
-    #cycle-timer-widget {
+    /* Tracker Header - Always visible, separate from accordion */
+    .tracker-header {
       position: fixed;
-      top: 20px;
-      left: 20px;
-      background: rgba(0, 0, 0, 0.9);
-      backdrop-filter: blur(10px);
-      border: 2px solid rgba(217, 119, 6, 0.5);
-      border-radius: 8px;
-      padding: 10px 14px;
+      top: 0;
+      left: 0;
+      width: 420px;
+      background: rgba(40, 40, 40, 0.95);
+      border-right: 3px solid rgba(251, 191, 36, 0.7);
+      border-bottom: 2px solid #888;
+      box-shadow: 4px 0 24px rgba(0, 0, 0, 0.7);
+      padding: 15px 18px;
       cursor: pointer;
-      transition: all 0.3s ease;
-      z-index: 10000;
+      transition: background 0.2s;
       user-select: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10002;
       pointer-events: auto;
     }
 
-    #cycle-timer-widget:hover {
+    .tracker-header:hover {
+      background: rgba(50, 50, 50, 0.95);
+    }
+
+    /* Cycle Tracker Body - Collapsible accordion below header */
+    #cycle-tracker {
+      position: fixed;
+      top: 68px;
+      left: 0;
+      width: 420px;
+      height: calc(100vh - 68px);
       background: rgba(0, 0, 0, 0.95);
-      border-color: rgba(217, 119, 6, 0.8);
-      transform: scale(1.05);
-      box-shadow: 0 4px 16px rgba(217, 119, 6, 0.3);
-    }
-
-    #cycle-timer-widget:active {
-      transform: scale(0.98);
-    }
-
-    .timer-widget-label {
-      font-size: 9px;
-      color: #9ca3af;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 4px;
-      text-align: center;
-    }
-
-    .timer-widget-value {
-      font-size: 16px;
-      font-weight: bold;
-      color: #fbbf24;
-      font-variant-numeric: tabular-nums;
-      text-align: center;
-    }
-
-    .timer-widget-hint {
-      font-size: 8px;
-      color: #6b7280;
-      text-align: center;
-      margin-top: 4px;
-      opacity: 0;
-      transition: opacity 0.3s;
-    }
-
-    #cycle-timer-widget:hover .timer-widget-hint {
+      border-right: 3px solid rgba(251, 191, 36, 0.7);
+      box-shadow: 4px 0 24px rgba(0, 0, 0, 0.7);
+      display: flex;
+      flex-direction: column;
+      z-index: 10001;
+      pointer-events: auto;
+      transition: opacity 0.3s ease, transform 0.3s ease;
       opacity: 1;
+      transform: translateX(0);
+    }
+
+    #cycle-tracker.collapsed {
+      opacity: 0;
+      transform: translateX(-420px);
+      pointer-events: none;
+    }
+
+    /* Hide after animation completes */
+    #cycle-tracker.collapsed.hidden {
+      display: none;
+    }
+
+    .tracker-title {
+      font-size: 24px;
+      font-weight: bold;
+      color: #fcd34d;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .tracker-hotkey-hint {
+      font-size: 14px;
+      color: #9ca3af;
+      font-weight: normal;
+      font-family: monospace;
+    }
+
+    .tracker-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+
+    #cycle-tracker.collapsed .tracker-body {
+      max-height: 0;
+      overflow: hidden;
+    }
+
+    .tracker-timer-container {
+      display: flex;
+      gap: 6px;
+      align-items: baseline;
+    }
+
+    .tracker-timer-label {
+      font-size: 15px;
+      color: #d1d5db;
+      text-transform: uppercase;
+      letter-spacing: 0.75px;
+    }
+
+    .tracker-timer-value {
+      font-size: 20px;
+      font-weight: bold;
+      color: #fcd34d;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .tracker-close-btn {
+      background: none;
+      border: none;
+      color: #d1d5db;
+      cursor: pointer;
+      font-size: 24px;
+      padding: 0 6px;
+      transition: color 0.2s;
+    }
+
+    .tracker-close-btn:hover {
+      color: #fff;
+    }
+
+    .tracker-tabs {
+      display: flex;
+      background: rgba(50, 50, 50, 0.8);
+      border-bottom: 2px solid #888;
+    }
+
+    .tracker-tab {
+      flex: 1;
+      padding: 12px;
+      text-align: center;
+      cursor: pointer;
+      font-size: 18px;
+      border: none;
+      background: none;
+      color: #d1d5db;
+      transition: all 0.2s;
+    }
+
+    .tracker-tab.active {
+      background: rgba(217, 119, 6, 0.4);
+      color: #fcd34d;
+      border-bottom: 3px solid #fcd34d;
+    }
+
+    .tracker-tab:hover {
+      background: rgba(217, 119, 6, 0.3);
+      color: #fcd34d;
+    }
+
+    .tracker-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0;
+    }
+
+    .tracker-content::-webkit-scrollbar {
+      width: 9px;
+    }
+
+    .tracker-content::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.3);
+    }
+
+    .tracker-content::-webkit-scrollbar-thumb {
+      background: rgba(217, 119, 6, 0.7);
+      border-radius: 4.5px;
+    }
+
+    .tracker-set-item {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .tracker-set-header {
+      display: flex;
+      align-items: center;
+      gap: 4.5px;
+      padding: 12px;
+      cursor: pointer;
+      font-size: 16.5px;
+      transition: background 0.2s;
+      background: rgba(50, 50, 50, 0.95);
+    }
+
+    .tracker-set-header:hover {
+      background: rgba(70, 70, 70, 0.95);
+    }
+
+    .tracker-expand-icon {
+      font-size: 15px;
+      width: 18px;
+      color: #d1d5db;
+      pointer-events: none;
+    }
+
+    .tracker-set-emoji {
+      font-size: 21px;
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .tracker-set-emoji svg {
+      width: 24px;
+      height: 24px;
+      display: block;
+    }
+
+    .tracker-set-progress {
+      color: #d1d5db;
+      min-width: 52px;
+      font-size: 15px;
+      pointer-events: none;
+    }
+
+    .tracker-set-name {
+      flex: 1;
+      font-size: 16.5px;
+      color: #f3f4f6;
+      pointer-events: none;
+    }
+
+    .tracker-set-name.complete {
+      color: #34d399;
+    }
+
+    .tracker-eye-icon {
+      cursor: pointer;
+      font-size: 21px;
+      padding: 3px;
+      transition: all 0.2s;
+      /* Eye icon spans full row height for easier clicking */
+      display: flex;
+      align-items: center;
+      align-self: stretch;
+      pointer-events: none;
+    }
+
+    .tracker-eye-icon.visible {
+      color: #fcd34d;
+    }
+
+    .tracker-eye-icon.hidden {
+      color: #9ca3af;
+      opacity: 0.5;
+    }
+
+    .tracker-eye-icon:hover {
+      transform: scale(1.2);
+    }
+
+    .tracker-items-list {
+      display: none;
+      padding: 0;
+      font-size: 16.5px;
+    }
+
+    .tracker-items-list.expanded {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0;
+    }
+
+    .tracker-item-compact {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      width: 50%;
+      padding: 8px 12px;
+      cursor: pointer;
+      transition: background 0.2s;
+      font-size: 15px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .tracker-item-compact:hover {
+      background: rgba(217, 119, 6, 0.2);
+    }
+
+    .tracker-item-checkbox {
+      width: 18px;
+      color: #d1d5db;
+      flex-shrink: 0;
+    }
+
+    .tracker-item-checkbox.collected {
+      color: #34d399;
+    }
+
+    .tracker-item-name {
+      flex: 1;
+      color: #f3f4f6;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tracker-item-name.collected {
+      color: #9ca3af;
+      text-decoration: line-through;
+    }
+
+    .tracker-footer {
+      background: rgba(40, 40, 40, 0.95);
+      padding: 12px 0;
+      border-top: 2px solid #888;
+      text-align: center;
+    }
+
+    .tracker-footer-progress {
+      font-size: 18px;
+      font-weight: bold;
+      color: #fcd34d;
+    }
+
+    .tracker-footer-credit {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-top: 6px;
+      font-style: italic;
+    }
+
+    .tracker-loading {
+      padding: 30px;
+      text-align: center;
+      color: #d1d5db;
+      font-size: 18px;
     }
   </style>
 </head>
@@ -296,12 +589,6 @@
   <canvas id="overlay-canvas"></canvas>
 
   <!-- Cycle Timer Widget -->
-  <div id="cycle-timer-widget">
-    <div class="timer-widget-label">Next Cycle</div>
-    <div class="timer-widget-value" id="timer-widget-value">--:--:--</div>
-    <div class="timer-widget-hint">Click for collections</div>
-  </div>
-
   <!-- Tooltip for collectible information -->
   <div id="collectible-tooltip"></div>
 
@@ -310,8 +597,32 @@
     Right-click to mark collected • Hover for details
   </div>
 
-  <!-- Cycle Tracker -->
-  <iframe id="cycle-tracker" src="cycle-tracker.html" style="position: fixed; top: 80px; left: 20px; width: 280px; height: 650px; border: none; display: none; z-index: 10001; pointer-events: auto;"></iframe>
+  <!-- Cycle Tracker Header (Always Visible) -->
+  <div class="tracker-header" id="tracker-header-clickable">
+    <div class="tracker-title">
+      <span>Collections</span>
+      <span class="tracker-hotkey-hint">F5</span>
+    </div>
+    <div class="tracker-timer-container">
+      <span class="tracker-timer-label">Next:</span>
+      <span class="tracker-timer-value" id="tracker-timer">00:00:00</span>
+    </div>
+  </div>
+
+  <!-- Cycle Tracker Body (Collapsible Accordion) -->
+  <div id="cycle-tracker">
+    <div class="tracker-tabs">
+      <button class="tracker-tab active" data-tab="guaranteed">Sets</button>
+      <button class="tracker-tab" data-tab="random">Random</button>
+    </div>
+    <div class="tracker-content" id="tracker-content">
+      <div class="tracker-loading">Loading cycle data...</div>
+    </div>
+    <div class="tracker-footer" id="tracker-footer">
+      <div class="tracker-footer-progress" id="tracker-footer-progress">0/264 (0%)</div>
+      <div class="tracker-footer-credit">Data from Jean Ropke's Collectors Map</div>
+    </div>
+  </div>
 
   <!-- Bottom overlay container for all UI -->
   <div id="bottom-overlay">

@@ -3,38 +3,61 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Collection Tracker</title>
+  <title>Collection Tracker - Interactive Mock-ups v2</title>
   <style>
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
-      user-select: none;
-      -webkit-user-select: none;
     }
 
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: transparent;
+      background: #1a1a1a;
       color: #e5e5e5;
-      overflow: hidden;
+      padding: 20px;
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
     }
 
-    #tracker-container {
-      position: fixed;
-      top: 50%;
-      right: 20px;
-      transform: translateY(-50%);
-      width: 280px;
-      height: 650px;
-      background: rgba(0, 0, 0, 0.95);
-      border: 2px solid rgba(217, 119, 6, 0.5);
+    .mockup-container {
+      background: rgba(30, 30, 30, 0.95);
+      border: 2px solid #444;
       border-radius: 8px;
       overflow: hidden;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    }
+
+    .mockup-label {
+      background: #d97706;
+      color: white;
+      padding: 8px 12px;
+      font-weight: bold;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .mockup-a {
+      width: 300px;
+      height: 650px;
+    }
+
+    .mockup-b {
+      width: 320px;
+      height: 650px;
+    }
+
+    .mockup-c {
+      width: 280px;
+      height: 650px;
+    }
+
+    .tracker {
+      height: calc(100% - 32px);
       display: flex;
       flex-direction: column;
-      z-index: 10001;
+      background: rgba(0, 0, 0, 0.9);
     }
 
     /* Header with timer */
@@ -49,19 +72,20 @@
 
     .timer-container {
       display: flex;
-      gap: 4px;
-      align-items: baseline;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
     }
 
     .timer-label {
-      font-size: 10px;
+      font-size: 9px;
       color: #9ca3af;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
 
     .timer-value {
-      font-size: 13px;
+      font-size: 14px;
       font-weight: bold;
       color: #fbbf24;
       font-variant-numeric: tabular-nums;
@@ -74,7 +98,6 @@
       cursor: pointer;
       font-size: 16px;
       padding: 0 4px;
-      transition: color 0.2s;
     }
 
     .close-btn:hover {
@@ -131,7 +154,7 @@
       border-radius: 3px;
     }
 
-    /* Set items - Ultra compact */
+    /* Set items */
     .set-item {
       margin-bottom: 4px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.05);
@@ -141,10 +164,10 @@
     .set-header {
       display: flex;
       align-items: center;
-      gap: 3px;
-      padding: 4px 2px;
+      gap: 6px;
+      padding: 6px 4px;
       cursor: pointer;
-      font-size: 11px;
+      font-size: 12px;
       transition: background 0.2s;
       user-select: none;
     }
@@ -160,20 +183,20 @@
     }
 
     .set-emoji {
-      font-size: 14px;
-      width: 16px;
+      font-size: 16px;
+      width: 20px;
       text-align: center;
     }
 
     .set-progress {
       color: #9ca3af;
-      min-width: 35px;
-      font-size: 10px;
+      min-width: 40px;
+      font-size: 11px;
     }
 
     .set-name {
       flex: 1;
-      font-size: 11px;
+      font-size: 12px;
     }
 
     .set-name.complete {
@@ -200,10 +223,10 @@
       transform: scale(1.2);
     }
 
-    /* Expanded items list - COMPACT 2-COLUMN */
+    /* Expanded items list - COMPACT 2-COLUMN LAYOUT */
     .items-list {
       display: none;
-      padding: 4px 0 4px 20px;
+      padding: 4px 0 4px 24px;
       font-size: 11px;
     }
 
@@ -251,6 +274,53 @@
       text-decoration: line-through;
     }
 
+    /* Random categories */
+    .random-category {
+      margin-bottom: 6px;
+      padding: 6px 4px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .random-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .random-header:hover {
+      background: rgba(217, 119, 6, 0.1);
+    }
+
+    .random-details {
+      display: none;
+      padding: 6px 0 0 24px;
+      font-size: 10px;
+      color: #9ca3af;
+    }
+
+    .random-details.expanded {
+      display: block;
+    }
+
+    .show-spawns-btn {
+      margin-top: 4px;
+      padding: 4px 8px;
+      background: rgba(217, 119, 6, 0.2);
+      border: 1px solid rgba(217, 119, 6, 0.5);
+      border-radius: 3px;
+      color: #fbbf24;
+      cursor: pointer;
+      font-size: 10px;
+      transition: all 0.2s;
+      width: 100%;
+    }
+
+    .show-spawns-btn:hover {
+      background: rgba(217, 119, 6, 0.4);
+    }
+
     /* Footer */
     .footer {
       background: rgba(40, 40, 40, 0.95);
@@ -268,25 +338,153 @@
       color: #9ca3af;
       font-size: 12px;
     }
+
+    /* Info banner */
+    .info-banner {
+      background: rgba(59, 130, 246, 0.2);
+      border: 1px solid rgba(59, 130, 246, 0.5);
+      padding: 8px;
+      margin: 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      color: #93c5fd;
+      text-align: center;
+    }
+
+    /* Variant-specific adjustments */
+
+    /* Variant A: Timer in header title area */
+    .mockup-a .header {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 6px;
+      padding: 8px 12px;
+    }
+
+    .mockup-a .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .mockup-a .timer-container {
+      flex-direction: row;
+      gap: 6px;
+      align-items: center;
+    }
+
+    /* Variant B: Compact timer inline */
+    .mockup-b .timer-container {
+      flex-direction: row;
+      gap: 4px;
+      align-items: baseline;
+    }
+
+    .mockup-b .timer-label {
+      font-size: 10px;
+    }
+
+    .mockup-b .timer-value {
+      font-size: 13px;
+    }
+
+    /* Variant C: Ultra compact */
+    .mockup-c .set-header {
+      padding: 4px 2px;
+      gap: 3px;
+    }
+
+    .mockup-c .set-emoji {
+      font-size: 14px;
+      width: 16px;
+    }
+
+    .mockup-c .set-progress {
+      min-width: 35px;
+      font-size: 10px;
+    }
+
+    .mockup-c .set-name {
+      font-size: 11px;
+    }
+
+    .mockup-c .items-list {
+      padding-left: 20px;
+    }
   </style>
 </head>
 <body>
-  <div id="tracker-container">
-    <div class="header">
-      <div class="timer-container">
-        <span class="timer-label">Next:</span>
-        <span class="timer-value" id="timer">00:00:00</span>
+
+  <!-- Mock-up A: Timer Above -->
+  <div class="mockup-container mockup-a">
+    <div class="mockup-label">Variant A: Timer Above Close Button</div>
+    <div class="tracker" id="tracker-a">
+      <div class="header">
+        <div class="header-row">
+          <div class="timer-container">
+            <span class="timer-label">Next cycle:</span>
+            <span class="timer-value" id="timer-a">00:00:00</span>
+          </div>
+          <button class="close-btn">×</button>
+        </div>
       </div>
-      <button class="close-btn" id="close-btn">×</button>
+      <div class="tabs">
+        <button class="tab active" data-tab="guaranteed" data-tracker="a">Sets</button>
+        <button class="tab" data-tab="random" data-tracker="a">Random</button>
+      </div>
+      <div class="content" id="content-a">
+        <div class="loading">Loading cycle data...</div>
+      </div>
+      <div class="footer" id="footer-a">Loading...</div>
     </div>
-    <div class="tabs">
-      <button class="tab active" data-tab="guaranteed">Sets</button>
-      <button class="tab" data-tab="random">Random</button>
+  </div>
+
+  <!-- Mock-up B: Timer Left Side -->
+  <div class="mockup-container mockup-b">
+    <div class="mockup-label">Variant B: Timer Left, Close Right</div>
+    <div class="tracker" id="tracker-b">
+      <div class="header">
+        <div class="timer-container">
+          <span class="timer-label">Next:</span>
+          <span class="timer-value" id="timer-b">00:00:00</span>
+        </div>
+        <button class="close-btn">×</button>
+      </div>
+      <div class="tabs">
+        <button class="tab active" data-tab="guaranteed" data-tracker="b">Sets</button>
+        <button class="tab" data-tab="random" data-tracker="b">Random</button>
+      </div>
+      <div class="content" id="content-b">
+        <div class="loading">Loading cycle data...</div>
+      </div>
+      <div class="footer" id="footer-b">Loading...</div>
     </div>
-    <div class="content" id="content">
-      <div class="loading">Loading cycle data...</div>
+  </div>
+
+  <!-- Mock-up C: Ultra Compact -->
+  <div class="mockup-container mockup-c">
+    <div class="mockup-label">Variant C: Ultra Compact (280px)</div>
+    <div class="tracker" id="tracker-c">
+      <div class="header">
+        <div class="timer-container">
+          <span class="timer-label">Next:</span>
+          <span class="timer-value" id="timer-c">00:00:00</span>
+        </div>
+        <button class="close-btn">×</button>
+      </div>
+      <div class="tabs">
+        <button class="tab active" data-tab="guaranteed" data-tracker="c">Sets</button>
+        <button class="tab" data-tab="random" data-tracker="c">Random</button>
+      </div>
+      <div class="content" id="content-c">
+        <div class="loading">Loading cycle data...</div>
+      </div>
+      <div class="footer" id="footer-c">Loading...</div>
     </div>
-    <div class="footer" id="footer">Loading...</div>
+  </div>
+
+  <div class="info-banner" style="position: fixed; bottom: 10px; left: 50%; transform: translateX(-50%); width: 700px;">
+    <strong>Real Data from Today's Cycle</strong> • Click sets to expand • Click items to toggle collected • Click 👁️ to toggle map visibility • Random items show as #0, #1, #2, etc.
   </div>
 
   <script>
@@ -296,41 +494,11 @@
       visibilityMap: {},
       collectedItems: {},
       cycleData: null,
-      itemsData: null,
-      activeTab: 'guaranteed',
-      lastRefreshTime: null
+      itemsData: null
     };
 
-    // Load persisted state
-    function loadPersistedState() {
-      try {
-        const saved = localStorage.getItem('cycleTrackerState');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          state.collectedItems = parsed.collectedItems || {};
-          state.visibilityMap = parsed.visibilityMap || {};
-          state.expandedSets = parsed.expandedSets || {};
-        }
-      } catch (e) {
-        console.error('Failed to load persisted state:', e);
-      }
-    }
-
-    // Save state
-    function saveState() {
-      try {
-        localStorage.setItem('cycleTrackerState', JSON.stringify({
-          collectedItems: state.collectedItems,
-          visibilityMap: state.visibilityMap,
-          expandedSets: state.expandedSets
-        }));
-      } catch (e) {
-        console.error('Failed to save state:', e);
-      }
-    }
-
     // Countdown timer to 00:00 UTC
-    function updateTimer() {
+    function updateTimers() {
       const now = new Date();
       const utcNow = new Date(now.getTime() + now.getTimezoneOffset() * 60000);
 
@@ -345,21 +513,43 @@
 
       const timeString = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 
-      document.getElementById('timer').textContent = timeString;
+      document.getElementById('timer-a').textContent = timeString;
+      document.getElementById('timer-b').textContent = timeString;
+      document.getElementById('timer-c').textContent = timeString;
+    }
 
-      // Check if cycle just changed (00:00:00)
-      if (hours === 0 && minutes === 0 && seconds === 0) {
+    // Load real data from Joan Ropke API
+    async function loadRealData() {
+      try {
+        // Fetch cycles and items data
+        const [cyclesResponse, itemsResponse] = await Promise.all([
+          fetch('https://jeanropke.github.io/RDR2CollectorsMap/data/cycles.json'),
+          fetch('https://jeanropke.github.io/RDR2CollectorsMap/data/items.json')
+        ]);
+
+        const cyclesData = await cyclesResponse.json();
+        const itemsData = await itemsResponse.json();
+
+        // Get today's date in UTC
+        const now = new Date();
+        const utcNow = new Date(now.getTime() + now.getTimezoneOffset() * 60000);
         const today = utcNow.toISOString().split('T')[0];
-        if (state.lastRefreshTime !== today) {
-          console.log('Cycle changed! Refreshing data...');
-          state.lastRefreshTime = today;
-          loadRealData();
-          // Also trigger backend refresh
-          fetch('http://localhost:5000/refresh-data', { method: 'POST' })
-            .then(res => res.json())
-            .then(data => console.log('Backend data refreshed:', data))
-            .catch(err => console.error('Failed to refresh backend:', err));
+
+        // Find today's cycles
+        const todayCycles = cyclesData.find(entry => entry.date === today);
+
+        if (!todayCycles) {
+          console.error('No cycle data for today:', today);
+          return null;
         }
+
+        state.cycleData = todayCycles;
+        state.itemsData = itemsData;
+
+        return { cycles: todayCycles, items: itemsData };
+      } catch (error) {
+        console.error('Failed to load real data:', error);
+        return null;
       }
     }
 
@@ -367,10 +557,12 @@
     function shortenItemName(rawName, category) {
       let name = rawName;
 
+      // Remove common prefixes
       name = name
         .replace(/^(document_card_|provision_|consumable_)/, '')
         .replace(/^(hrlm_|egg_)/, '');
 
+      // Handle random items (e.g., "arrowhead_random_5" -> "#5")
       if (name.includes('_random_')) {
         const match = name.match(/_random_(\d+)/);
         if (match) {
@@ -378,20 +570,24 @@
         }
       }
 
+      // Handle tarot cards - remove suit name since it's in the set title
       if (['cups', 'swords', 'wands', 'pentacles'].includes(category)) {
         name = name.replace(/_(cups|swords|wands|pentacles)$/, '');
       }
 
+      // Handle eggs - remove "egg" suffix
       if (category === 'egg') {
         name = name.replace(/_egg(_\d+)?$/, '');
       }
 
+      // Handle flowers - remove common patterns
       if (category === 'flower') {
         name = name
           .replace(/^(american_wild_flower_|wild_flower_)/, '')
           .replace(/_(flower|blossom)$/, '');
       }
 
+      // Handle heirlooms - shorten common patterns
       if (category === 'heirlooms') {
         name = name
           .replace(/^(brush_|comb_|hairpin_)/, '')
@@ -400,6 +596,7 @@
           .replace(/_hairpin$/, ' Pin');
       }
 
+      // Convert to readable format
       name = name
         .replace(/_/g, ' ')
         .split(' ')
@@ -409,42 +606,6 @@
       return name;
     }
 
-    // Load real data from Joan Ropke API
-    async function loadRealData() {
-      try {
-        const [cyclesResponse, itemsResponse] = await Promise.all([
-          fetch('https://jeanropke.github.io/RDR2CollectorsMap/data/cycles.json'),
-          fetch('https://jeanropke.github.io/RDR2CollectorsMap/data/items.json')
-        ]);
-
-        const cyclesData = await cyclesResponse.json();
-        const itemsData = await itemsResponse.json();
-
-        const now = new Date();
-        const utcNow = new Date(now.getTime() + now.getTimezoneOffset() * 60000);
-        const today = utcNow.toISOString().split('T')[0];
-
-        const todayCycles = cyclesData.find(entry => entry.date === today);
-
-        if (!todayCycles) {
-          console.error('No cycle data for today:', today);
-          document.getElementById('content').innerHTML = '<div class="loading">No cycle data available for today</div>';
-          return null;
-        }
-
-        state.cycleData = todayCycles;
-        state.itemsData = itemsData;
-        state.lastRefreshTime = today;
-
-        renderAll();
-        return { cycles: todayCycles, items: itemsData };
-      } catch (error) {
-        console.error('Failed to load real data:', error);
-        document.getElementById('content').innerHTML = '<div class="loading">Failed to load cycle data</div>';
-        return null;
-      }
-    }
-
     // Parse real data into organized sets
     function parseRealData() {
       if (!state.cycleData || !state.itemsData) return null;
@@ -452,21 +613,30 @@
       const sets = [];
       const randomCategories = [];
 
+      // Category configuration
       const categoryConfig = {
+        // Guaranteed sets (tarot cards)
         'cups': { emoji: '🏆', name: 'Cups', type: 'guaranteed' },
         'swords': { emoji: '🎴', name: 'Swords', type: 'guaranteed' },
         'wands': { emoji: '⭐', name: 'Wands', type: 'guaranteed' },
         'pentacles': { emoji: '🃏', name: 'Pentacles', type: 'guaranteed' },
+
+        // Guaranteed sets (eggs)
         'egg': { emoji: '🥚', name: 'Eggs', type: 'guaranteed' },
+
+        // Guaranteed sets (others)
         'bottle': { emoji: '🍾', name: 'Bottles', type: 'guaranteed' },
         'flower': { emoji: '🌺', name: 'Flowers', type: 'guaranteed' },
         'heirlooms': { emoji: '👑', name: 'Heirlooms', type: 'guaranteed' },
+
+        // Random categories
         'arrowhead': { emoji: '🎯', name: 'Arrowheads', type: 'random' },
         'coin': { emoji: '🪙', name: 'Coins', type: 'random' },
         'fossils': { emoji: '🦴', name: 'Fossils', type: 'random' },
         'jewelry': { emoji: '💍', name: 'Jewelry', type: 'random' }
       };
 
+      // Process each category
       for (const [category, config] of Object.entries(categoryConfig)) {
         const cycleNum = state.cycleData[category];
         if (!cycleNum) continue;
@@ -477,9 +647,10 @@
         const cycleItems = categoryItems[String(cycleNum)];
         if (!cycleItems || !Array.isArray(cycleItems)) continue;
 
+        // Check if this is a random category
         const isRandom = cycleItems.some(item => item.text && item.text.includes('_random_'));
 
-        const items = cycleItems.map((item) => {
+        const items = cycleItems.map((item, index) => {
           const rawName = item.text || 'Unknown';
           const readableName = shortenItemName(rawName, category);
 
@@ -491,6 +662,7 @@
         });
 
         if (isRandom || config.type === 'random') {
+          // Random category with individual items
           randomCategories.push({
             emoji: config.emoji,
             name: config.name,
@@ -498,9 +670,10 @@
             total: items.length,
             collected: 0,
             visible: true,
-            items: items
+            items: items  // Now includes individual items
           });
         } else {
+          // Guaranteed set
           sets.push({
             emoji: config.emoji,
             name: config.name,
@@ -519,27 +692,17 @@
     // Toggle functions
     function toggleSet(setName) {
       state.expandedSets[setName] = !state.expandedSets[setName];
-      saveState();
       renderAll();
     }
 
     function toggleVisibility(setName) {
       state.visibilityMap[setName] = !state.visibilityMap[setName];
-      saveState();
       renderAll();
-
-      // Notify parent window to update collectible visibility
-      window.parent.postMessage({
-        type: 'update-collectible-visibility',
-        category: setName,
-        visible: state.visibilityMap[setName] !== false
-      }, '*');
     }
 
     function toggleCollected(setName, itemId) {
       const key = `${setName}-${itemId}`;
       state.collectedItems[key] = !state.collectedItems[key];
-      saveState();
       renderAll();
     }
 
@@ -552,6 +715,7 @@
         const isVisible = state.visibilityMap[set.name] !== false;
         const expandIcon = isExpanded ? '▼' : '▽';
 
+        // Count collected items
         let collectedCount = 0;
         set.items.forEach(item => {
           const key = `${set.name}-${item.id}`;
@@ -609,6 +773,7 @@
         const isVisible = state.visibilityMap[cat.name] !== false;
         const expandIcon = isExpanded ? '▼' : '▽';
 
+        // Count collected items
         let collectedCount = 0;
         cat.items.forEach(item => {
           const key = `${cat.name}-${item.id}`;
@@ -655,64 +820,81 @@
       }).join('');
     }
 
-    // Render all
+    // Render all mockups
     function renderAll() {
       const data = parseRealData();
       if (!data) return;
 
-      const content = document.getElementById('content');
+      const guaranteedHTML = renderGuaranteedSets(data);
+      const randomHTML = renderRandomCategories(data);
 
-      if (state.activeTab === 'guaranteed') {
-        content.innerHTML = renderGuaranteedSets(data);
-      } else if (state.activeTab === 'random') {
-        content.innerHTML = renderRandomCategories(data);
-      }
+      // Update all mockups
+      ['a', 'b', 'c'].forEach(id => {
+        const content = document.getElementById(`content-${id}`);
+        const activeTab = document.querySelector(`#tracker-${id} .tab.active`);
+        const tabType = activeTab?.dataset.tab || 'guaranteed';
 
-      // Update footer
-      const totalItems = data.sets.reduce((sum, set) => sum + set.total, 0) +
-                        data.randomCategories.reduce((sum, cat) => sum + cat.total, 0);
-      let totalCollected = 0;
+        if (tabType === 'guaranteed') {
+          content.innerHTML = guaranteedHTML;
+        } else if (tabType === 'random') {
+          content.innerHTML = randomHTML;
+        }
 
-      data.sets.forEach(set => {
-        set.items.forEach(item => {
-          const key = `${set.name}-${item.id}`;
-          if (state.collectedItems[key]) totalCollected++;
+        // Update footer - include both guaranteed and random
+        const totalItems = data.sets.reduce((sum, set) => sum + set.total, 0) +
+                          data.randomCategories.reduce((sum, cat) => sum + cat.total, 0);
+        let totalCollected = 0;
+
+        // Count guaranteed
+        data.sets.forEach(set => {
+          set.items.forEach(item => {
+            const key = `${set.name}-${item.id}`;
+            if (state.collectedItems[key]) totalCollected++;
+          });
         });
-      });
 
-      data.randomCategories.forEach(cat => {
-        cat.items.forEach(item => {
-          const key = `${cat.name}-${item.id}`;
-          if (state.collectedItems[key]) totalCollected++;
+        // Count random
+        data.randomCategories.forEach(cat => {
+          cat.items.forEach(item => {
+            const key = `${cat.name}-${item.id}`;
+            if (state.collectedItems[key]) totalCollected++;
+          });
         });
-      });
 
-      document.getElementById('footer').textContent =
-        `${totalCollected}/${totalItems} collected (${Math.round(totalCollected/totalItems*100)}%)`;
+        document.getElementById(`footer-${id}`).textContent =
+          `${totalCollected}/${totalItems} collected (${Math.round(totalCollected/totalItems*100)}%)`;
+      });
     }
 
     // Tab switching
     document.querySelectorAll('.tab').forEach(tab => {
       tab.addEventListener('click', function() {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        const trackerId = this.dataset.tracker;
+        const parent = document.getElementById(`tracker-${trackerId}`);
+
+        parent.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
         this.classList.add('active');
-        state.activeTab = this.dataset.tab;
+
         renderAll();
       });
     });
 
-    // Close button
-    document.getElementById('close-btn').addEventListener('click', async () => {
-      // Hide tracker in parent window
-      window.parent.postMessage({ type: 'close-tracker' }, '*');
-    });
-
     // Initialize
     async function init() {
-      loadPersistedState();
-      updateTimer();
-      setInterval(updateTimer, 1000);
-      await loadRealData();
+      // Start timer
+      updateTimers();
+      setInterval(updateTimers, 1000);
+
+      // Load real data
+      const result = await loadRealData();
+      if (result) {
+        renderAll();
+      } else {
+        // Fallback message
+        document.querySelectorAll('.content').forEach(el => {
+          el.innerHTML = '<div class="loading">Failed to load cycle data. Check console for errors.</div>';
+        });
+      }
     }
 
     init();

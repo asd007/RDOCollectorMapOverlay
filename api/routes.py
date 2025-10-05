@@ -42,8 +42,17 @@ def create_app(state: OverlayState):
     if SERVER.CORS_ENABLED:
         CORS(app)
 
-    # Initialize SocketIO for push updates
-    socketio = SocketIO(app, cors_allowed_origins="*" if SERVER.CORS_ENABLED else None)
+    # Initialize SocketIO for push updates with performance tuning
+    socketio = SocketIO(
+        app,
+        cors_allowed_origins="*" if SERVER.CORS_ENABLED else None,
+        async_mode='threading',  # Use threading for async operations
+        ping_interval=25000,     # Reduce ping overhead (25s instead of 5s default)
+        ping_timeout=60000,      # Allow longer timeout
+        engineio_logger=False,   # Disable debug logging
+        logger=False,            # Disable SocketIO logging for performance
+        max_http_buffer_size=1024*1024  # 1MB buffer for large payloads
+    )
 
     # Store socketio reference in state for continuous capture to emit events
     state.socketio = socketio
@@ -212,8 +221,15 @@ def create_app(state: OverlayState):
             if cascade_info:
                 response['cascade'] = {
                     'level_used': cascade_level,
-                    'levels_tried': levels_tried
+                    'levels_tried': levels_tried,
+                    'roi_used': cascade_info.get('roi_used', False),
+                    'prediction_used': cascade_info.get('prediction_used', False)
                 }
+
+                # Add motion prediction details if available
+                motion_pred = cascade_info.get('motion_prediction')
+                if motion_pred:
+                    response['cascade']['motion_prediction'] = motion_pred
 
             return jsonify(response)
 
@@ -223,7 +239,11 @@ def create_app(state: OverlayState):
     
     @app.route('/reset-tracking', methods=['POST'])
     def reset_tracking():
-        """Reset tracking state (currently no-op as tracking removed)"""
+        """Reset cascade matcher tracking state"""
+        if state.matcher and hasattr(state.matcher, 'last_viewport'):
+            state.matcher.last_viewport = None
+            state.matcher.last_confidence = 0.0
+            state.matcher.last_screenshot = None
         return jsonify({'success': True})
     
     @app.route('/refresh-data', methods=['POST'])
@@ -234,6 +254,55 @@ def create_app(state: OverlayState):
             collectibles = CollectiblesLoader.load(state.coord_transform)
             state.set_collectibles(collectibles)
             return jsonify({'success': True, 'collectibles': len(collectibles)})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    @app.route('/collectibles', methods=['GET'])
+    def get_collectibles():
+        """
+        Get ALL collectibles with map coordinates for client-side rendering.
+        Frontend fetches this once and transforms positions based on viewport.
+
+        Returns:
+            {
+                success: bool,
+                collectibles: [
+                    {
+                        map_x: float,  // Detection space coordinates
+                        map_y: float,
+                        t: str,        // type (shortened)
+                        n: str,        // name (shortened)
+                        h: str,        // help text (optional)
+                        v: str         // video link (optional)
+                    }
+                ],
+                count: int
+            }
+        """
+        try:
+            # Return all collectibles with map coordinates
+            collectibles_data = []
+            for col in state.collectibles:
+                item = {
+                    'map_x': col.x,  # Detection space X (x/y are already detection coords)
+                    'map_y': col.y,  # Detection space Y
+                    't': col.type,   # Type
+                    'n': col.name    # Name
+                }
+
+                # Optional fields
+                if col.help:
+                    item['h'] = col.help
+                if col.video:
+                    item['v'] = col.video
+
+                collectibles_data.append(item)
+
+            return jsonify({
+                'success': True,
+                'collectibles': collectibles_data,
+                'count': len(collectibles_data)
+            })
         except Exception as e:
             return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -331,81 +400,23 @@ def create_app(state: OverlayState):
     @app.route('/profiling-stats', methods=['GET'])
     def get_profiling_stats():
         """
-        Get detailed profiling statistics from continuous capture.
-        ONLY includes stats from successful matches (failures excluded).
+        Get comprehensive profiling statistics from continuous capture.
 
         Returns performance metrics including:
-        - Frontend FPS (what user experiences on successful matches)
-        - Timing breakdown (capture, matching, overlay)
+        - Backend FPS (actual capture rate, target vs achieved)
+        - Frame breakdown (motion-only vs AKAZE, skipped, failed)
+        - Latency stats (mean, median, P95, best, worst)
+        - Drift tracking (position consistency of one collectible)
+        - Pan tracking (speed, acceleration, movement classification)
         - Match quality (confidence, inliers)
-        - Cascade level usage
+        - Timing breakdown
         """
         if not state.capture_service:
             return jsonify({
                 'error': 'Continuous capture not available'
             }), 503
 
-        stats = state.capture_service.stats
-
-        # Build comprehensive stats response (only successful matches)
-        capture_times = list(stats['capture_times'])
-        match_times = list(stats['match_times'])
-        overlay_times = list(stats['overlay_times'])
-        total_times = list(stats['total_times'])
-        confidences = list(stats['confidences'])
-        inliers = list(stats['inliers'])
-
-        successful_matches = len(match_times)
-        success_rate = (successful_matches / max(1, stats['total_frames'])) * 100
-
-        # Count cascade level usage
-        cascade_counts = {}
-        for level in stats['cascade_levels_used']:
-            cascade_counts[level] = cascade_counts.get(level, 0) + 1
-
-        # Get exception stats
-        exceptions = list(stats['exceptions']) if 'exceptions' in stats else []
-        exception_count = len(exceptions)
-
-        duplicate_frames = stats.get('duplicate_frames', 0)
-        duplicate_rate = (duplicate_frames / max(1, stats['total_frames'])) * 100
-
-        response = {
-            'note': 'Stats include ONLY successful matches (failures excluded)',
-            'total_frames': stats['total_frames'],
-            'successful_matches': successful_matches,
-            'no_map_detected': stats['no_map_detected'],
-            'duplicate_frames': duplicate_frames,
-            'duplicate_rate': duplicate_rate,
-            'success_rate': success_rate,
-            'frontend_fps': {
-                'mean': 1000 / np.mean(total_times) if total_times else 0,
-                'median': 1000 / np.median(total_times) if total_times else 0,
-                'p95': 1000 / np.percentile(total_times, 95) if total_times else 0
-            },
-            'timing_ms': {
-                'capture_mean': np.mean(capture_times) if capture_times else 0,
-                'capture_median': np.median(capture_times) if capture_times else 0,
-                'match_mean': np.mean(match_times) if match_times else 0,
-                'match_median': np.median(match_times) if match_times else 0,
-                'overlay_mean': np.mean(overlay_times) if overlay_times else 0,
-                'total_mean': np.mean(total_times) if total_times else 0,
-                'total_median': np.median(total_times) if total_times else 0,
-                'total_p95': np.percentile(total_times, 95) if total_times else 0
-            },
-            'match_quality': {
-                'confidence_mean': float(np.mean(confidences)) if confidences else 0,
-                'confidence_median': float(np.median(confidences)) if confidences else 0,
-                'inliers_mean': float(np.mean(inliers)) if inliers else 0,
-                'inliers_median': float(np.median(inliers)) if inliers else 0
-            },
-            'cascade_levels': cascade_counts,
-            'exceptions': {
-                'count': exception_count,
-                'recent': exceptions  # Last 10 exceptions with timestamps and tracebacks
-            }
-        }
-
-        return jsonify(response)
+        # Use the new comprehensive stats method
+        return jsonify(state.capture_service._get_stats())
 
     return app, socketio

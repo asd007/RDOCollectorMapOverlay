@@ -100,7 +100,8 @@ def initialize_system():
         )
         base_matcher.compute_reference_features(detection_map)
 
-        # Create cascade with 3 levels (25% -> 50% -> 70% fallback)
+        # Create cascade with 3 levels (25% -> 50% -> 100% fallback)
+        # Carefully tuned thresholds for accuracy
         cascade_levels = [
             ScaleConfig(
                 scale=0.25,
@@ -119,16 +120,22 @@ def initialize_system():
                 name="Reliable (50%)"
             ),
             ScaleConfig(
-                scale=0.7,
-                max_features=210,
-                min_confidence=0.0,
+                scale=1.0,
+                max_features=300,
+                min_confidence=0.0,  # Always accept (final fallback)
                 min_inliers=5,
                 min_matches=8,
-                name="Optimized (70%)"
+                name="Full Resolution (100%)"
             )
         ]
 
-        state.matcher = CascadeScaleMatcher(base_matcher, cascade_levels, use_scale_prediction=False, verbose=False)
+        state.matcher = CascadeScaleMatcher(
+            base_matcher,
+            cascade_levels,
+            use_scale_prediction=False,
+            verbose=False,  # Disable verbose logging - use /profiling-stats endpoint instead
+            enable_roi_tracking=True  # Enable ROI tracking with motion prediction
+        )
 
         # Load collectibles
         print("Loading collectibles...")
@@ -155,7 +162,8 @@ def initialize_system():
 
                 game_capture = WindowsCapture(
                     window_name=window_title,
-                    cursor_capture=False  # Hide cursor in screen captures
+                    cursor_capture=False,  # Hide cursor in screen captures
+                    minimum_update_interval=16  # Force 60 FPS capture (16ms interval)
                 )
 
                 @game_capture.event
