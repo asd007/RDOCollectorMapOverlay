@@ -54,36 +54,31 @@ if (!canvas) {
   throw new Error('Canvas element #overlay-canvas not found in DOM');
 }
 
-// PixiJS setup (v7+ uses async initialization)
+// PixiJS setup (replaces Canvas2D for GPU-accelerated rendering)
 let pixiApp;
 let collectiblesContainer;
 let spritePool = new Map(); // key: collectibleId, value: PIXI.Sprite
-let pixiReady = false;
 
-// Initialize PixiJS asynchronously (v7+ requirement)
-(async () => {
-  try {
-    pixiApp = new PIXI.Application();
-    await pixiApp.init({
-      canvas: canvas,
-      width: window.innerWidth,
-      height: window.innerHeight,
-      backgroundAlpha: 0, // Transparent background
-      antialias: true,
-      resolution: window.devicePixelRatio || 1,
-      autoDensity: true,
-    });
+try {
+  pixiApp = new PIXI.Application({
+    view: canvas,
+    width: window.innerWidth,
+    height: window.innerHeight,
+    backgroundAlpha: 0, // Transparent background
+    antialias: true,
+    resolution: window.devicePixelRatio || 1,
+    autoDensity: true,
+  });
 
-    // PixiJS containers
-    collectiblesContainer = new PIXI.Container();
-    pixiApp.stage.addChild(collectiblesContainer);
+  // PixiJS containers
+  collectiblesContainer = new PIXI.Container();
+  pixiApp.stage.addChild(collectiblesContainer);
 
-    pixiReady = true;
-    console.log('[PixiJS] Initialized successfully (v7 async)');
-  } catch (error) {
-    console.error('[PixiJS] Initialization failed:', error);
-  }
-})();
+  console.log('[PixiJS] Initialized successfully');
+} catch (error) {
+  console.error('[PixiJS] Initialization failed:', error);
+  throw error;
+}
 
 // UI elements
 const statusBar = document.getElementById('status-bar');
@@ -2107,11 +2102,6 @@ function getCollectibleSprite(type, isCollected) {
 
 // Optimized draw function using sprite caching
 function drawOverlay() {
-  // Wait for PixiJS to be ready
-  if (!pixiReady || !collectiblesContainer) {
-    return;
-  }
-
   // Hide/show PixiJS stage based on overlay visibility
   collectiblesContainer.visible = overlayVisible;
 
