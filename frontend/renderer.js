@@ -1835,10 +1835,11 @@ async function startAlignment() {
     const response = await axios.post(`${BACKEND_URL}/align-with-screenshot`);
     
     if (response.data.success) {
-      // Receive collectibles data directly from alignment
-      if (response.data.collectibles) {
-        currentCollectibles = response.data.collectibles;
-        console.log(`→ Received ${currentCollectibles.length} collectibles from alignment`);
+      // Receive viewport and transform collectibles client-side
+      if (response.data.viewport) {
+        currentViewport = response.data.viewport;
+        currentCollectibles = transformCollectibles(currentViewport);
+        console.log(`→ Alignment successful: ${currentCollectibles.length} collectibles visible`);
       }
       alignmentComplete(true, response.data);
     } else {

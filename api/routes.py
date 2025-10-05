@@ -190,25 +190,19 @@ def create_app(state: OverlayState):
                     'timing': {'matching_ms': round(matching_time, 1)}
                 }), 500
 
-            # Get visible collectibles
-            overlay_start = time.time()
-            collectibles = state.get_visible_collectibles(result)
-            overlay_time = (time.time() - overlay_start) * 1000
-            
             total_time = (time.time() - request_start) * 1000
 
-            # Prepare response (no logging for performance)
+            # Prepare response (viewport-only, no collectibles)
             cascade_info = result.get('cascade_info', {})
             cascade_level = cascade_info.get('final_level', 'N/A')
             levels_tried = len(cascade_info.get('levels_tried', []))
 
             response = {
                 'success': True,
-                'collectibles': collectibles,
+                'viewport': result.get('viewport', {}),
                 'timing': {
                     'screenshot_ms': round(screenshot_time, 1),
                     'matching_ms': round(matching_time, 1),
-                    'overlay_ms': round(overlay_time, 1),
                     'total_ms': round(total_time, 1)
                 },
                 'quality': {
