@@ -10,7 +10,7 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from config import SERVER, MAP_DIMENSIONS, SCREENSHOT
+from config import SERVER, MAP_DIMENSIONS, SCREENSHOT, DEBUG
 from core import CoordinateTransform, MapLoader, CollectiblesLoader
 from core.continuous_capture import ContinuousCaptureService
 from core.port_manager import find_available_port, write_port_file
@@ -25,8 +25,15 @@ try:
     import win32gui
     CAPTURE_AVAILABLE = True
 except ImportError:
-    print("Warning: windows-capture not available - continuous capture disabled")
+    print("[WARN] windows-capture not available - continuous capture disabled")
     CAPTURE_AVAILABLE = False
+
+
+# Logging helpers
+def log_debug(msg):
+    """Log debug messages (only if DEBUG=True)"""
+    if DEBUG:
+        print(f"[DEBUG] {msg}")
 
 
 def _find_rdr2_window():
@@ -46,38 +53,40 @@ def _find_rdr2_window():
 
 def initialize_system():
     """Initialize the overlay system"""
-    print("RDO Map Overlay - Initializing...")
+    if not DEBUG:
+        print("RDO Map Overlay starting...")
+    else:
+        print("RDO Map Overlay - Initializing (DEBUG=True)...")
 
     state = OverlayState()
 
     try:
         # Initialize coordinate transform
-        print("Initializing coordinate system...")
+        log_debug("Initializing coordinate system...")
         state.coord_transform = CoordinateTransform()
 
         # Load map and preprocess with optimized resize-first order
-        print("Loading map with optimized preprocessing (resize in grayscale)...")
+        log_debug("Loading map with optimized preprocessing...")
         from config.paths import CachePaths, ExternalURLs
 
         # Check if map exists
         hq_source = CachePaths.find_hq_map_source()
         if not hq_source or not hq_source.exists():
-            print("ERROR: HQ map not found!")
+            print("[ERROR] HQ map not found!")
             print("\nThe map file is required but was not found in any of the expected locations.")
             print("Please ensure the installer downloaded the map data during installation.")
-            print("\nExpected locations:")
-            print(f"  - Installation: {CachePaths.DATA_DIR / CachePaths.HQ_MAP_SOURCE_FILE}")
+            print(f"\nExpected location: {CachePaths.DATA_DIR / CachePaths.HQ_MAP_SOURCE_FILE}")
             return None
 
         # Load as color, will convert to grayscale in preprocessing
         hq_map = cv2.imread(str(hq_source))
         h, w = hq_map.shape[:2]
-        print(f"HQ map loaded: {w}x{h}")
+        log_debug(f"HQ map loaded: {w}x{h}")
 
         # Apply optimized preprocessing: resize in grayscale BEFORE posterization
         from core.image_preprocessing import preprocess_with_resize
         detection_map = preprocess_with_resize(hq_map, scale=MAP_DIMENSIONS.DETECTION_SCALE)
-        print(f"Detection map preprocessed: {detection_map.shape[1]}x{detection_map.shape[0]}")
+        log_debug(f"Detection map preprocessed: {detection_map.shape[1]}x{detection_map.shape[0]}")
 
         # Cache for future use
         state.full_map = detection_map  # Store detection-scale map directly

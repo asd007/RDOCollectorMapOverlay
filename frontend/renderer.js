@@ -17,6 +17,14 @@ const io = require('socket.io-client');
 
 // Configuration - backend URL will be set dynamically
 let BACKEND_URL = 'http://127.0.0.1:5000';  // Default fallback
+const DEBUG = false; // Set to true for verbose logging
+
+// Logging helpers
+function logDebug(...args) {
+  if (DEBUG) {
+    console.log('[DEBUG]', ...args);
+  }
+}
 
 // Initialize connection wrapper
 function initializeConnection() {

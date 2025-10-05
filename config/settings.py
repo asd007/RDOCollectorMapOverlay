@@ -6,6 +6,9 @@ Optimized for speed while maintaining good accuracy
 from dataclasses import dataclass, field
 from typing import Dict, List, Tuple
 
+# Global debug flag - set to True to enable verbose logging
+DEBUG = False
+
 
 @dataclass(frozen=True)
 class MapDimensions:
