@@ -76,6 +76,8 @@ def create_app(state: OverlayState):
     @app.route('/status', methods=['GET'])
     def get_status():
         """Get system status"""
+        from config.settings import DEBUG
+
         # Handle both CascadeScaleMatcher and SimpleMatcher
         features = 0
         if state.matcher:
@@ -92,7 +94,8 @@ def create_app(state: OverlayState):
             'collectibles_loaded': len(state.collectibles),
             'screenshot_available': SCREENSHOT_AVAILABLE,
             'method': 'cascade_scale_matcher',
-            'features': features
+            'features': features,
+            'debug': DEBUG  # Share DEBUG setting with frontend
         })
     
     @app.route('/align-with-screenshot', methods=['POST'])

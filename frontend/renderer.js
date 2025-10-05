@@ -18,7 +18,7 @@ const PIXI = require('pixi.js');
 
 // Configuration - backend URL will be set dynamically
 let BACKEND_URL = 'http://127.0.0.1:5000';  // Default fallback
-const DEBUG = false; // Set to true for verbose logging
+let DEBUG = false; // Will be updated from backend // Set to true for verbose logging
 
 // Logging helpers
 function logDebug(...args) {
@@ -1796,6 +1796,17 @@ async function initialize() {
   console.log('[Initialize] Backend URL:', BACKEND_URL);
   console.log('[Initialize] Initial state - overlayVisible:', overlayVisible, 'isRdr2Active:', isRdr2Active);
   updateStatus('Connecting to backend...', 'inactive');
+
+  // Fetch DEBUG setting from backend
+  try {
+    const statusResponse = await axios.get(`${BACKEND_URL}/status`);
+    if (statusResponse.data.debug !== undefined) {
+      DEBUG = statusResponse.data.debug;
+      console.log(`[Initialize] DEBUG mode: ${DEBUG ? 'ENABLED' : 'DISABLED'} (from backend)`);
+    }
+  } catch (error) {
+    console.error('[Initialize] Failed to fetch DEBUG setting from backend:', error.message);
+  }
 
   // Pre-render SVG sprite cache
   console.log('[Initialize] Pre-rendering SVG sprites...');
