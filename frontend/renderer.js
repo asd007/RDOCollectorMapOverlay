@@ -1190,8 +1190,47 @@ function connectWebSocket() {
     console.error('Reconnection error:', error.message);
   });
 
-  // Viewport update from backend (new optimized protocol)
-  socket.on('viewport_update', handleViewportUpdate);
+  // Binary viewport update from backend (optimized protocol - 20 bytes vs 150 bytes)
+  socket.on('viewport_update_binary', (binaryData) => {
+    const receiveTime = performance.now();
+
+    // Decode binary message (20 bytes total)
+    // Format: [success(1)] [x(4)] [y(4)] [width(4)] [height(4)] [confidence(2)] [flags(1)]
+    const buffer = new Uint8Array(binaryData);
+    const view = new DataView(buffer.buffer);
+
+    // Extract fields (little-endian)
+    const success = buffer[0] === 1;
+    const x = view.getFloat32(1, true);
+    const y = view.getFloat32(5, true);
+    const width = view.getFloat32(9, true);
+    const height = view.getFloat32(13, true);
+    const confidenceRaw = view.getUint16(17, true);
+    const methodFlags = buffer[19];
+
+    // Convert confidence from uint16 (0-65535) back to float (0.0-1.0)
+    const confidence = confidenceRaw / 65535;
+
+    // Decode method flags
+    const isMotionOnly = (methodFlags & 0x01) !== 0;
+
+    // Convert to JSON format for handleViewportUpdate
+    const data = {
+      success: true,
+      viewport: { x, y, width, height },
+      confidence,
+      method: isMotionOnly ? 'motion_prediction_only' : 'akaze',
+      cascade_level: isMotionOnly ? 'Motion-Only' : 'AKAZE'
+    };
+
+    handleViewportUpdate(data, receiveTime);
+  });
+
+  // JSON viewport update (fallback for failures)
+  socket.on('viewport_update', (data) => {
+    const receiveTime = performance.now();
+    handleViewportUpdate(data, receiveTime);
+  });
 
   // Match update from backend (deprecated, kept for backward compatibility)
   socket.on('match_update', handleMatchUpdate);

@@ -659,27 +659,47 @@ class ContinuousCaptureService:
             self.latest_result = result
 
         # Push VIEWPORT-ONLY update to frontend via WebSocket
-        # Frontend keeps all collectibles and transforms them client-side
-        # This reduces payload from ~5KB to ~100 bytes per frame
+        # Using BINARY protocol for maximum efficiency (~20 bytes vs ~150 bytes JSON)
         if self.socketio:
             try:
                 if result.get('success'):
-                    # Send only viewport coordinates (detection space)
-                    viewport_update = {
-                        'success': True,
-                        'viewport': result.get('viewport', {}),
-                        'confidence': result.get('confidence', 0),
-                        'method': result.get('match_type', 'unknown'),
-                        'cascade_level': result.get('cascade_level', 'unknown')
-                    }
+                    import struct
+
+                    viewport = result.get('viewport', {})
+                    x = viewport.get('x', 0)
+                    y = viewport.get('y', 0)
+                    width = viewport.get('width', 0)
+                    height = viewport.get('height', 0)
+                    confidence = result.get('confidence', 0)
+
+                    # Determine method flags (bitfield)
+                    # Bit 0: AKAZE bypassed (motion-only)
+                    # Bit 1-7: Reserved for future use
+                    cascade_info = result.get('cascade_info', {})
+                    method_flags = 0
+                    if cascade_info.get('akaze_bypassed'):
+                        method_flags |= 0x01  # Set bit 0
+
+                    # Pack binary message (23 bytes total)
+                    # Format: B = unsigned char (1 byte)
+                    #         f = float (4 bytes)
+                    #         H = unsigned short (2 bytes)
+                    # Using '<' for little-endian to match JavaScript DataView
+                    binary_message = struct.pack(
+                        '<Bffff H B',
+                        1,  # Success flag (byte 0)
+                        x, y, width, height,  # floats (bytes 1-16)
+                        int(confidence * 65535),  # uint16 (bytes 17-18)
+                        method_flags  # byte 19
+                    )
+
+                    self.socketio.emit('viewport_update_binary', binary_message)
                 else:
-                    # Map not visible or match failed
-                    viewport_update = {
+                    # Failure - send minimal JSON (rare case)
+                    self.socketio.emit('viewport_update', {
                         'success': False,
                         'error': result.get('error', 'Match failed')
-                    }
-
-                self.socketio.emit('viewport_update', viewport_update)
+                    })
             except Exception:
                 # Silently ignore WebSocket errors (e.g., no clients connected)
                 pass
