@@ -48,24 +48,37 @@ function initializeConnection() {
     }
 })();
 
-// PixiJS setup (replaces Canvas2D for GPU-accelerated rendering)
+// Canvas element (must exist before PixiJS initialization)
 const canvas = document.getElementById('overlay-canvas');
-const pixiApp = new PIXI.Application({
-  view: canvas,
-  width: window.innerWidth,
-  height: window.innerHeight,
-  backgroundAlpha: 0, // Transparent background
-  antialias: true,
-  resolution: window.devicePixelRatio || 1,
-  autoDensity: true,
-});
+if (!canvas) {
+  throw new Error('Canvas element #overlay-canvas not found in DOM');
+}
 
-// PixiJS containers
-const collectiblesContainer = new PIXI.Container();
-pixiApp.stage.addChild(collectiblesContainer);
+// PixiJS setup (replaces Canvas2D for GPU-accelerated rendering)
+let pixiApp;
+let collectiblesContainer;
+let spritePool = new Map(); // key: collectibleId, value: PIXI.Sprite
 
-// Sprite pool for collectibles (reuse sprites instead of creating new ones)
-const spritePool = new Map(); // key: collectibleId, value: PIXI.Sprite
+try {
+  pixiApp = new PIXI.Application({
+    view: canvas,
+    width: window.innerWidth,
+    height: window.innerHeight,
+    backgroundAlpha: 0, // Transparent background
+    antialias: true,
+    resolution: window.devicePixelRatio || 1,
+    autoDensity: true,
+  });
+
+  // PixiJS containers
+  collectiblesContainer = new PIXI.Container();
+  pixiApp.stage.addChild(collectiblesContainer);
+
+  console.log('[PixiJS] Initialized successfully');
+} catch (error) {
+  console.error('[PixiJS] Initialization failed:', error);
+  throw error;
+}
 
 // UI elements
 const statusBar = document.getElementById('status-bar');
