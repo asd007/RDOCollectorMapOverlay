@@ -6,7 +6,8 @@ from .settings import (
     PERFORMANCE,
     COLLECTIBLES,
     SERVER,
-    SCREENSHOT
+    SCREENSHOT,
+    DEBUG
 )
 
 from .paths import (
@@ -17,10 +18,11 @@ from .paths import (
 __all__ = [
     'MAP_DIMENSIONS',
     'MATCHING',
-    'PERFORMANCE', 
+    'PERFORMANCE',
     'COLLECTIBLES',
     'SERVER',
     'SCREENSHOT',
+    'DEBUG',
     'CACHE_PATHS',
     'EXTERNAL_URLS'
 ]
