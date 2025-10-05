@@ -100,13 +100,19 @@ class CachePaths:
             locations.append(downloaded_map)
 
         # Search all locations
-        print(f"[DEBUG] Searching for HQ map in the following locations:")
-        for i, location in enumerate(locations, 1):
-            abs_path = location.resolve() if location.exists() else location
-            exists = "[OK] FOUND" if location.exists() else "[ERROR] NOT FOUND"
-            print(f"  {i}. {abs_path} [{exists}]")
+        from config.settings import DEBUG
+
+        if DEBUG:
+            print(f"[DEBUG] Searching for HQ map in the following locations:")
+            for i, location in enumerate(locations, 1):
+                abs_path = location.resolve() if location.exists() else location
+                exists = "[OK] FOUND" if location.exists() else "[ERROR] NOT FOUND"
+                print(f"  {i}. {abs_path} [{exists}]")
+
+        for location in locations:
             if location.exists():
-                print(f"[DEBUG] Using HQ map from: {location.resolve()}")
+                if DEBUG:
+                    print(f"[DEBUG] Using HQ map from: {location.resolve()}")
                 return location
 
         print(f"[ERROR] HQ map not found in any of the {len(locations)} locations checked!")
