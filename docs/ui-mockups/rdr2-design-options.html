@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RDO Overlay - RDR2 UI Design Mockups</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier Prime', 'Courier New', monospace;
+            background: #1a1511;
+            color: #e8dcc4;
+            padding: 40px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 36px;
+            color: #f4bf5f;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .subtitle {
+            color: #b8956c;
+            font-size: 14px;
+            margin-bottom: 40px;
+        }
+
+        .mockup-section {
+            margin-bottom: 60px;
+            padding: 30px;
+            background: #251f1a;
+            border: 3px solid #4a3f2f;
+            border-radius: 8px;
+        }
+
+        .mockup-section h2 {
+            color: #f4bf5f;
+            font-size: 24px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #4a3f2f;
+        }
+
+        .mockup-description {
+            color: #b8956c;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .mockup-preview {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            min-height: 300px;
+            position: relative;
+        }
+
+        /* Tooltip Styles */
+        .tooltip {
+            background: rgba(20, 15, 10, 0.95);
+            border: 2px solid #8b6f47;
+            padding: 15px;
+            border-radius: 6px;
+            max-width: 300px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+        }
+
+        .tooltip-name {
+            color: #f4bf5f;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .tooltip-type {
+            color: #b8956c;
+            font-size: 12px;
+            margin-bottom: 6px;
+        }
+
+        .tooltip-help {
+            color: #e8dcc4;
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+
+        .tooltip-status {
+            color: #6ba368;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .tooltip-status.not-collected {
+            color: #c4725f;
+        }
+
+        .video-button {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: linear-gradient(135deg, #c4725f, #a85d4d);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Collection Tracker Styles */
+        .tracker {
+            background: rgba(40, 35, 25, 0.98);
+            border-right: 3px solid #8b6f47;
+            width: 420px;
+            height: 600px;
+        }
+
+        .tracker-header {
+            background: rgba(30, 25, 18, 0.95);
+            padding: 15px 18px;
+            border-bottom: 2px solid #4a3f2f;
+        }
+
+        .tracker-title {
+            color: #f4bf5f;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .tracker-timer {
+            color: #f4bf5f;
+            font-size: 20px;
+            margin-top: 10px;
+        }
+
+        .tracker-timer-label {
+            color: #b8956c;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .tracker-tabs {
+            display: flex;
+            background: rgba(50, 45, 35, 0.8);
+            border-bottom: 2px solid #4a3f2f;
+        }
+
+        .tracker-tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            font-size: 16px;
+            cursor: pointer;
+            color: #b8956c;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tracker-tab.active {
+            background: rgba(75, 60, 40, 0.6);
+            color: #f4bf5f;
+            border-bottom-color: #f4bf5f;
+        }
+
+        .tracker-set {
+            padding: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(50, 45, 35, 0.6);
+        }
+
+        .tracker-set-name {
+            color: #e8dcc4;
+            font-size: 16px;
+        }
+
+        .tracker-set-progress {
+            color: #b8956c;
+            font-size: 14px;
+            margin-left: 10px;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .feature {
+            background: rgba(50, 45, 35, 0.6);
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 3px solid #8b6f47;
+        }
+
+        .feature h3 {
+            color: #f4bf5f;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .feature p {
+            color: #b8956c;
+            font-size: 12px;
+        }
+
+        .code-sample {
+            background: rgba(0, 0, 0, 0.4);
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #6ba368;
+            overflow-x: auto;
+        }
+
+        /* Status Bar Styles */
+        .status-bar {
+            background: rgba(20, 15, 10, 0.85);
+            border: 2px solid rgba(139, 111, 71, 0.5);
+            border-radius: 8px;
+            padding: 12px 16px;
+            display: inline-block;
+        }
+
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #6ba368;
+            margin-right: 8px;
+        }
+
+        .option-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 20px;
+        }
+
+        .option {
+            background: rgba(50, 45, 35, 0.4);
+            padding: 20px;
+            border-radius: 6px;
+            border: 2px solid #4a3f2f;
+        }
+
+        .option h3 {
+            color: #f4bf5f;
+            margin-bottom: 15px;
+        }
+
+        .pros-cons {
+            margin-top: 15px;
+        }
+
+        .pros-cons h4 {
+            color: #6ba368;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+
+        .pros-cons ul {
+            list-style: none;
+            font-size: 12px;
+            color: #b8956c;
+        }
+
+        .pros-cons li:before {
+            content: "• ";
+            color: #f4bf5f;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>RDO Overlay - UI Design Mockups</h1>
+        <p class="subtitle">Red Dead Redemption 2 Design Language Implementation Options</p>
+
+        <!-- Option 1: Parchment & Leather -->
+        <div class="mockup-section">
+            <h2>Option 1: Parchment & Leather Theme</h2>
+            <p class="mockup-description">
+                Traditional Old West aesthetics with parchment textures, leather borders, and warm brown/gold color palette.
+                Emphasizes authenticity and immersion.
+            </p>
+
+            <div class="mockup-preview">
+                <h3 style="color: #f4bf5f; margin-bottom: 15px;">Collectible Tooltip Example</h3>
+                <div class="tooltip">
+                    <div class="tooltip-name">Tennessee Whiskey</div>
+                    <div class="tooltip-type">Type: Antique Alcohol</div>
+                    <div class="tooltip-help">Found in abandoned buildings and homesteads across Lemoyne</div>
+                    <div class="tooltip-status">[COLLECTED]</div>
+                    <button class="video-button">▶ Guide</button>
+                </div>
+            </div>
+
+            <div class="features">
+                <div class="feature">
+                    <h3>Color Palette</h3>
+                    <p>
+                        Primary: #f4bf5f (Gold)<br>
+                        Secondary: #8b6f47 (Leather Brown)<br>
+                        Background: #1a1511 (Dark Brown)<br>
+                        Text: #e8dcc4 (Parchment)
+                    </p>
+                </div>
+                <div class="feature">
+                    <h3>Typography</h3>
+                    <p>
+                        Font: Courier Prime (monospace)<br>
+                        Headers: Bold, uppercase<br>
+                        Body: Regular, high contrast<br>
+                        Letter spacing: 1-2px for headers
+                    </p>
+                </div>
+                <div class="feature">
+                    <h3>Visual Elements</h3>
+                    <p>
+                        Borders: 2-3px solid, worn edges<br>
+                        Shadows: Subtle, warm tones<br>
+                        Corners: Slightly rounded (4-8px)<br>
+                        Opacity: 0.85-0.98 for overlays
+                    </p>
+                </div>
+            </div>
+
+            <div class="code-sample">
+/* Example QML Styling */
+Rectangle {
+    color: "#1a1511"
+    border.color: "#8b6f47"
+    border.width: 2
+    radius: 6
+
+    Text {
+        color: "#f4bf5f"
+        font.family: "Courier Prime"
+        font.pixelSize: 16
+        font.weight: Font.Bold
+    }
+}
+            </div>
+        </div>
+
+        <!-- Option 2: Minimal Western -->
+        <div class="mockup-section">
+            <h2>Option 2: Minimal Western Theme</h2>
+            <p class="mockup-description">
+                Cleaner, more modern take on Western aesthetics. Retains thematic colors but reduces visual noise.
+                Better for quick readability during gameplay.
+            </p>
+
+            <div class="mockup-preview">
+                <h3 style="color: #f4bf5f; margin-bottom: 15px;">Collection Tracker Example</h3>
+                <div class="tracker">
+                    <div class="tracker-header">
+                        <div class="tracker-title">Collections</div>
+                        <div class="tracker-timer">
+                            <span class="tracker-timer-label">NEXT CYCLE:</span> 18:42:15
+                        </div>
+                    </div>
+                    <div class="tracker-tabs">
+                        <div class="tracker-tab active">Sets</div>
+                        <div class="tracker-tab">Random</div>
+                    </div>
+                    <div class="tracker-set">
+                        <span class="tracker-set-name">Arrowheads</span>
+                        <span class="tracker-set-progress">8/12</span>
+                    </div>
+                    <div class="tracker-set">
+                        <span class="tracker-set-name">Bird Eggs</span>
+                        <span class="tracker-set-progress">5/15</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="option-comparison">
+                <div class="option">
+                    <h3>When to Use Parchment & Leather</h3>
+                    <div class="pros-cons">
+                        <h4>Best For:</h4>
+                        <ul>
+                            <li>Players who prioritize immersion</li>
+                            <li>Full-screen overlays with space for detail</li>
+                            <li>Static/persistent UI elements</li>
+                            <li>Storytelling and atmosphere</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="option">
+                    <h3>When to Use Minimal Western</h3>
+                    <div class="pros-cons">
+                        <h4>Best For:</h4>
+                        <ul>
+                            <li>Players who prioritize performance</li>
+                            <li>Quick-glance information during combat</li>
+                            <li>Small tooltips and popups</li>
+                            <li>Reduced visual clutter</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Option 3: Hybrid Approach -->
+        <div class="mockup-section">
+            <h2>Option 3: Hybrid Approach (RECOMMENDED)</h2>
+            <p class="mockup-description">
+                Combines the best of both worlds: rich parchment aesthetics for persistent UI (tracker, status bar),
+                minimal design for transient elements (tooltips, notifications). Balances immersion with usability.
+            </p>
+
+            <div class="mockup-preview">
+                <h3 style="color: #f4bf5f; margin-bottom: 15px;">Status Bar Example</h3>
+                <div class="status-bar">
+                    <span class="status-dot"></span>
+                    <span style="color: #e8dcc4;">Tracking - 142 collectibles visible</span>
+                </div>
+
+                <div style="margin-top: 30px;">
+                    <h3 style="color: #f4bf5f; margin-bottom: 15px;">Quick Tooltip (Minimal)</h3>
+                    <div style="background: rgba(0,0,0,0.9); border: 2px solid #8b6f47; padding: 10px; display: inline-block; border-radius: 4px;">
+                        <div style="color: #f4bf5f; font-size: 14px; font-weight: bold;">1800 Gold Quarter</div>
+                        <div style="color: #b8956c; font-size: 11px;">[NOT COLLECTED]</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="features">
+                <div class="feature">
+                    <h3>Persistent UI</h3>
+                    <p>
+                        Full parchment treatment<br>
+                        Rich textures and shadows<br>
+                        Decorative borders<br>
+                        Atmospheric typography
+                    </p>
+                </div>
+                <div class="feature">
+                    <h3>Transient UI</h3>
+                    <p>
+                        Minimal backgrounds<br>
+                        High contrast text<br>
+                        Simple borders<br>
+                        Fast readability
+                    </p>
+                </div>
+                <div class="feature">
+                    <h3>Implementation</h3>
+                    <p>
+                        Two QML theme variants<br>
+                        Component-level switching<br>
+                        Shared color palette<br>
+                        Consistent typography
+                    </p>
+                </div>
+            </div>
+
+            <div class="code-sample">
+/* Hybrid Theme Implementation */
+QtObject {
+    id: Theme
+
+    // Shared palette
+    readonly property color accentGold: "#f4bf5f"
+    readonly property color leatherBrown: "#8b6f47"
+    readonly property color darkBrown: "#1a1511"
+    readonly property color parchment: "#e8dcc4"
+
+    // Component-specific styles
+    readonly property var persistent: QtObject {
+        property color background: "#251f1a"
+        property real backgroundOpacity: 0.98
+        property int borderWidth: 3
+        property bool showShadows: true
+    }
+
+    readonly property var transient: QtObject {
+        property color background: "#000000"
+        property real backgroundOpacity: 0.9
+        property int borderWidth: 2
+        property bool showShadows: false
+    }
+}
+            </div>
+        </div>
+
+        <!-- Implementation Guide -->
+        <div class="mockup-section">
+            <h2>Implementation Checklist</h2>
+            <p class="mockup-description">
+                Steps to apply the chosen design language to the QML overlay.
+            </p>
+
+            <div class="features">
+                <div class="feature">
+                    <h3>1. Update Theme.qml</h3>
+                    <p>
+                        Define color palette constants<br>
+                        Create persistent/transient variants<br>
+                        Set typography standards<br>
+                        Define spacing/sizing scales
+                    </p>
+                </div>
+                <div class="feature">
+                    <h3>2. Apply to Components</h3>
+                    <p>
+                        CollectibleTooltip → Minimal<br>
+                        CollectionTracker → Parchment<br>
+                        StatusPill → Parchment<br>
+                        VideoPlayer → Minimal
+                    </p>
+                </div>
+                <div class="feature">
+                    <h3>3. Font Integration</h3>
+                    <p>
+                        Download Courier Prime font<br>
+                        Add to qml/fonts/ directory<br>
+                        Register in FontLoader<br>
+                        Set as Theme.fontFamily
+                    </p>
+                </div>
+                <div class="feature">
+                    <h3>4. Testing</h3>
+                    <p>
+                        Verify readability at 1920x1080<br>
+                        Test with various collectible types<br>
+                        Check color contrast ratios<br>
+                        Validate on actual gameplay footage
+                    </p>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</body>
+</html>
