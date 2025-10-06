@@ -1,0 +1,11 @@
+module RDOOverlay
+typeinfo plugins.qmltypes
+
+# Custom QML components
+StatusPill 1.0 StatusPill.qml
+FPSCounter 1.0 FPSCounter.qml
+CollectionTracker 1.0 CollectionTracker.qml
+CollectibleSprites 1.0 CollectibleSprites.qml
+
+# Python-powered canvas (registered in Python code)
+# CollectibleCanvas is registered via @QmlElement decorator
