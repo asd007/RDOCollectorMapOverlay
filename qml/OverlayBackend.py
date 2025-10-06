@@ -40,6 +40,7 @@ class OverlayBackend(QObject):
     trackerVisibilityChanged = Signal()
     opacityChanged = Signal()
     overlayVisibilityChanged = Signal()
+    isPanningChanged = Signal()  # Emitted when user starts/stops panning
 
     def __init__(self, overlay_state=None, parent=None):
         super().__init__(parent)
@@ -53,6 +54,12 @@ class OverlayBackend(QObject):
         # Canvas reference (set from QML)
         self._canvas = None
 
+        # GL renderer reference (set from app_qml.py)
+        self.gl_renderer = None
+
+        # Cached collectibles list for GL renderer (rebuilt only when tracker changes)
+        self._cached_collectibles = None
+
         # Cached collection sets (only rebuild when tracker changes, not on every collectiblesChanged)
         self._collection_sets_cache = None
         self._collection_sets_dirty = True
@@ -65,6 +72,19 @@ class OverlayBackend(QObject):
         self._viewport_y: float = 0.0
         self._viewport_width: float = 3840.0  # Detection space default
         self._viewport_height: float = 2160.0
+
+        # Viewport velocity tracking (for frontend prediction)
+        self._viewport_vx: float = 0.0  # Velocity in detection space units/sec
+        self._viewport_vy: float = 0.0
+        self._last_viewport_update: float = time.perf_counter()
+
+        # Drift statistics (prediction accuracy)
+        self._prediction_drift_x: float = 0.0  # Last prediction error in X
+        self._prediction_drift_y: float = 0.0  # Last prediction error in Y
+        self._avg_drift: float = 0.0  # Running average drift magnitude
+        self._drift_samples: List[float] = []  # Last 100 drift samples
+        self._last_predicted_x: float = 0.0  # Last predicted position
+        self._last_predicted_y: float = 0.0
 
         # Visible collectibles (screen space coordinates) - never None!
         self._visible_collectibles: List[Dict] = []
@@ -81,6 +101,9 @@ class OverlayBackend(QObject):
         self._tracker_visible: bool = False  # Start with tracker collapsed
         self._opacity: float = 0.7
         self._overlay_visible: bool = True
+
+        # Panning detection (for prediction weighting)
+        self._is_panning: bool = False  # True when left mouse button is down
 
         # Rendering stats
         self._render_fps: float = 0.0
@@ -110,32 +133,81 @@ class OverlayBackend(QObject):
             ]
             self.tracker.initialize_from_collectibles(collectibles_list)
 
+            # Build initial collectibles list for renderer
+            self._rebuild_collectibles_cache()
+
             # Emit signal to notify QML that collection sets are ready
             self.collectiblesChanged.emit()
 
-    @Slot(dict, list)
+    def _rebuild_collectibles_cache(self):
+        """
+        Rebuild collectibles list for renderer when tracker state changes.
+        Only iterates through ALL collectibles when tracker visibility changes.
+        NOT called on every frame - only when user toggles categories.
+        """
+        if not self._state or not self.gl_renderer:
+            return
+
+        # Build list of all visible collectibles in detection space
+        collectibles_list = []
+        for col in self._state.collectibles:
+            # Filter by tracker visibility
+            if not self.tracker.is_visible(col.category):
+                continue
+
+            collectibles_list.append({
+                'map_x': col.x,  # Detection space
+                'map_y': col.y,
+                'type': col.type,
+                'collected': self.tracker.is_collected(col.category, col.name)
+            })
+
+        # Pass to renderer (this is NOT on the render loop)
+        self.gl_renderer.set_collectibles(collectibles_list)
+        print(f"[Backend] Rebuilt collectibles cache: {len(collectibles_list)} items")
+
+    @Slot(object, object)
     def update_viewport(self, viewport: Dict, collectibles: List[Dict]):
         """
-        Update viewport and visible collectibles (pre-computed on capture thread).
+        Update viewport transform only. Collectibles already loaded in renderer.
         Called from continuous_capture service.
 
         Args:
             viewport: {'x', 'y', 'width', 'height'} in detection space
-            collectibles: Pre-computed list of visible collectibles with screen coords
+            collectibles: Ignored - renderer already has ALL collectibles
         """
         self._viewport_update_count += 1
         self._viewport = viewport
 
-        # Update viewport transform properties for QML container
+        # Calculate viewport velocity for frontend prediction
+        current_time = time.perf_counter()
+        dt = current_time - self._last_viewport_update
+
+        if dt > 0 and self._viewport_x != 0:  # Skip first frame
+            # Calculate velocity in detection space units per second
+            dx = viewport['x'] - self._viewport_x
+            dy = viewport['y'] - self._viewport_y
+            self._viewport_vx = dx / dt
+            self._viewport_vy = dy / dt
+
+        self._last_viewport_update = current_time
+
+        # Update viewport transform in renderer
+        if self.gl_renderer:
+            self.gl_renderer.set_viewport(
+                viewport['x'],
+                viewport['y'],
+                viewport['width'],
+                viewport['height']
+            )
+
+        # Update viewport properties for QML
         self._viewport_x = viewport['x']
         self._viewport_y = viewport['y']
         self._viewport_width = viewport['width']
         self._viewport_height = viewport['height']
 
         self.viewportChanged.emit()
-
-        # Use pre-computed collectibles from capture thread (avoid blocking UI thread)
-        self._set_visible_collectibles_direct(collectibles)
 
         # Track frame time for FPS
         current_time = time.perf_counter()
@@ -158,6 +230,13 @@ class OverlayBackend(QObject):
         # Direct canvas update (bypasses QML property binding)
         if self._canvas:
             self._canvas.updateCollectibles(self._visible_collectibles)
+
+        # Direct renderer update - pass screen coords directly (NO conversion)
+        if self.gl_renderer:
+            # Collectibles already have screen_x, screen_y - pass them directly!
+            # ALWAYS update - visible list changes as player moves!
+            # Note: No need to call render_frame() - renderer has its own 30 FPS timer
+            self.gl_renderer.set_collectibles(collectibles)
 
     def _update_visible_collectibles(self):
         """Filter and transform collectibles to screen coordinates"""
@@ -227,6 +306,7 @@ class OverlayBackend(QObject):
         """Mark/unmark item as collected"""
         self.tracker.toggle_collected(category, item_name)
         self._collection_sets_dirty = True  # Mark cache as dirty
+        self._rebuild_collectibles_cache()  # Rebuild renderer cache
         self._update_visible_collectibles()  # Refresh to update collected state
 
     @Slot(str)
@@ -234,6 +314,7 @@ class OverlayBackend(QObject):
         """Toggle category visibility"""
         self.tracker.toggle_visibility(category)
         self._collection_sets_dirty = True  # Mark cache as dirty
+        self._rebuild_collectibles_cache()  # Rebuild renderer cache
         self._update_visible_collectibles()
 
     @Slot(str)
@@ -266,6 +347,24 @@ class OverlayBackend(QObject):
             button: 'left' or 'right'
         """
         self.mouseClicked.emit(x, y, button)
+
+    @Slot(bool, bool)
+    def handle_mouse_button_state(self, left_down: bool, right_down: bool):
+        """
+        Handle mouse button state change from pynput observer.
+        Updates panning detection state (for prediction weighting).
+
+        Args:
+            left_down: True if left button is pressed
+            right_down: True if right button is pressed
+        """
+        # User is panning when left mouse button is down
+        was_panning = self._is_panning
+        self._is_panning = left_down
+
+        # Emit signal if panning state changed
+        if was_panning != self._is_panning:
+            self.isPanningChanged.emit()
 
     # Hotkey actions
 
@@ -304,19 +403,7 @@ class OverlayBackend(QObject):
         self._tracker_visible = not self._tracker_visible
         self.trackerVisibilityChanged.emit()
 
-    @Slot()
-    def cycle_opacity(self):
-        """F7 - Cycle opacity levels (0.3 -> 0.5 -> 0.7 -> 0.9)"""
-        opacities = [0.3, 0.5, 0.7, 0.9]
-        try:
-            current_index = opacities.index(self._opacity)
-            next_index = (current_index + 1) % len(opacities)
-        except ValueError:
-            next_index = 2  # Default to 0.7 if current value not in list
-
-        self._opacity = opacities[next_index]
-        self.opacityChanged.emit()
-        print(f"[Hotkey] F7 - Opacity: {int(self._opacity * 100)}%")
+    # Opacity removed - panel is always opaque, only collected items dimmed
 
     @Slot()
     def toggle_visibility(self):
@@ -523,6 +610,12 @@ class OverlayBackend(QObject):
 
     overlayVisible = Property(bool, get_overlay_visible, notify=overlayVisibilityChanged)
 
+    def get_is_panning(self):
+        """Whether user is currently panning (left mouse button down)"""
+        return self._is_panning
+
+    isPanning = Property(bool, get_is_panning, notify=isPanningChanged)
+
     # Viewport transform properties (for QML container transform)
     def get_viewport_x(self):
         """Viewport X offset in detection space"""
@@ -547,3 +640,44 @@ class OverlayBackend(QObject):
         return self._viewport_height
 
     viewportHeight = Property(float, get_viewport_height, notify=viewportChanged)
+
+    def get_viewport_vx(self):
+        """Viewport X velocity in detection space units/sec"""
+        return self._viewport_vx
+
+    viewportVx = Property(float, get_viewport_vx, notify=viewportChanged)
+
+    def get_viewport_vy(self):
+        """Viewport Y velocity in detection space units/sec"""
+        return self._viewport_vy
+
+    viewportVy = Property(float, get_viewport_vy, notify=viewportChanged)
+
+    # Drift statistics properties
+    def get_prediction_drift_x(self):
+        """Last prediction drift in X (detection space)"""
+        return self._prediction_drift_x
+
+    predictionDriftX = Property(float, get_prediction_drift_x, notify=viewportChanged)
+
+    def get_prediction_drift_y(self):
+        """Last prediction drift in Y (detection space)"""
+        return self._prediction_drift_y
+
+    predictionDriftY = Property(float, get_prediction_drift_y, notify=viewportChanged)
+
+    def get_avg_drift(self):
+        """Average prediction drift magnitude (detection space)"""
+        return self._avg_drift
+
+    avgDrift = Property(float, get_avg_drift, notify=viewportChanged)
+
+    @Slot(float, float)
+    def report_predicted_position(self, predicted_x: float, predicted_y: float):
+        """
+        Called from QML to report predicted viewport position.
+        Stores the prediction so drift can be calculated on next backend update.
+        """
+        # Store the predicted position
+        self._last_predicted_x = predicted_x
+        self._last_predicted_y = predicted_y

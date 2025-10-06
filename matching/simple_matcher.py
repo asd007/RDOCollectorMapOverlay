@@ -53,23 +53,31 @@ class SimpleMatcher:
         self.use_gpu = use_gpu
         if use_gpu:
             try:
-                # Check if CUDA is available
-                cuda_count = cv2.cuda.getCudaEnabledDeviceCount()
-                if cuda_count > 0:
-                    self.gpu_available = True
-                    print(f"GPU acceleration available: {cuda_count} CUDA device(s) detected")
+                import threading
+                # Disable GPU in daemon threads (causes hangs)
+                if threading.current_thread().daemon:
+                    print("[WARNING] GPU disabled in daemon thread (causes hangs)")
+                    self.use_gpu = False
+                    self.gpu_available = False
+                else:
+                    # Check if CUDA is available
+                    cuda_count = cv2.cuda.getCudaEnabledDeviceCount()
+                    if cuda_count > 0:
+                        self.gpu_available = True
+                        print(f"GPU acceleration available: {cuda_count} CUDA device(s) detected")
             except:
                 pass  # CUDA not available, will use CPU
 
         # Create AKAZE detector with tuned parameters for better distribution
         # Note: For scale-aware optimization, use create_scale_optimized_detector()
+        # Simplified parameters to prevent hangs
         self.detector = cv2.AKAZE_create(
             descriptor_type=cv2.AKAZE_DESCRIPTOR_MLDB,  # Most distinctive
             descriptor_size=0,  # Full size
             descriptor_channels=3,  # Multi-channel for robustness
-            threshold=0.0008,  # Lower threshold for more features in sparse areas
-            nOctaves=4,  # Standard octaves
-            nOctaveLayers=4,  # More layers for better scale coverage
+            threshold=0.001,  # Higher threshold = fewer features = faster (was 0.0008)
+            nOctaves=3,  # Reduced octaves for speed (was 4)
+            nOctaveLayers=3,  # Reduced layers for speed (was 4)
             diffusivity=cv2.KAZE_DIFF_PM_G2  # Edge-preserving diffusion
         )
 
@@ -226,7 +234,16 @@ class SimpleMatcher:
                 - roi_keypoints: int (number of keypoints in ROI, if filtered)
         """
         # Detect features in screenshot
-        kp, desc = self.detector.detectAndCompute(screenshot, None)
+        import time
+        detect_start = time.time()
+
+        try:
+            kp, desc = self.detector.detectAndCompute(screenshot, None)
+        except Exception as e:
+            print(f"[SimpleMatcher] detectAndCompute failed: {e}")
+            return self._failed_result(f"Feature detection failed: {e}")
+
+        detect_time = (time.time() - detect_start) * 1000
 
         if desc is None or len(kp) == 0:
             return self._failed_result("No features detected in screenshot")
@@ -278,12 +295,8 @@ class SimpleMatcher:
                     desc_map = self.desc_map[roi_indices]
                     roi_filter_applied = True
                     roi_keypoints = len(roi_indices)
-
-                    print(f"[ROI Filter] Using {roi_keypoints}/{len(self.kp_map)} keypoints "
-                          f"({100*roi_keypoints/len(self.kp_map):.1f}%)")
                 else:
                     # ROI too restrictive, fall back to full search
-                    print(f"[ROI Filter] No keypoints in ROI, falling back to full search")
                     kp_map, desc_map = self.kp_map, self.desc_map
                     roi_filter_applied = False
                     roi_keypoints = len(kp_map)

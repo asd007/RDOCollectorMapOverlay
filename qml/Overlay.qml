@@ -149,12 +149,12 @@ Window {
         }
     }
 
-    // Collectible sprites (GPU-accelerated transform rendering) - always click-through
-    CollectibleSprites {
+    // Collectible sprites (Painted renderer) - always click-through
+    CollectibleSpritesPainted {
         id: sprites
         anchors.fill: parent
-        // Viewport and collectibles bound directly to backend properties
-        // Transform applied at container level for maximum performance
+        z: 0  // Behind UI elements
+        // Backend calls render_frame() directly, no QML bindings
     }
 
     // Bottom overlay container (centered at bottom) - click-through
@@ -187,6 +187,7 @@ Window {
             FPSCounter {
                 id: fpsCounter
                 fps: backend.fps
+                avgDrift: backend.avgDrift
             }
         }
     }

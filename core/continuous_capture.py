@@ -10,9 +10,13 @@ import hashlib
 from typing import Optional, Dict, List
 from dataclasses import dataclass, asdict
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+
+from PySide6.QtCore import QObject, Signal
 
 from matching.viewport_tracker import ViewportKalmanTracker, Viewport
 from core.map_detector import is_map_visible
+from core.metrics import MetricsTracker
 
 
 @dataclass
@@ -109,13 +113,16 @@ class FallbackDetector:
         self.confidence_history.clear()
 
 
-class ContinuousCaptureService:
+class ContinuousCaptureService(QObject):
     """
     Background service for continuous screenshot capture and matching.
     Maintains latest match state for frontend polling and WebSocket push.
     """
 
-    def __init__(self, matcher, capture_func, collectibles_func, target_fps=5, socketio=None):
+    # Qt signals for event-driven updates
+    viewport_updated = Signal(object, object)  # Emits (viewport dict, collectibles list)
+
+    def __init__(self, matcher, capture_func, collectibles_func, target_fps=5, parent=None):
         """
         Initialize continuous capture service.
 
@@ -124,14 +131,15 @@ class ContinuousCaptureService:
             capture_func: Function that captures and preprocesses screenshot
             collectibles_func: Function(viewport) that returns visible collectibles
             target_fps: Initial target capture rate (default 5fps, will adapt)
-            socketio: SocketIO instance for push updates (optional)
+            parent: QObject parent (required for proper Qt signal/slot functionality)
         """
+        super().__init__(parent)
+
         self.matcher = matcher
         self.capture_func = capture_func
         self.collectibles_func = collectibles_func
         self.target_fps = target_fps
         self.frame_interval = 1.0 / target_fps
-        self.socketio = socketio
 
         # State
         self.running = False
@@ -147,6 +155,10 @@ class ContinuousCaptureService:
         self.tracker = ViewportKalmanTracker(dt=self.frame_interval)
         self.fallback_detector = FallbackDetector()
         self.previous_viewport = None
+
+        # Latest viewport for PySide6 overlay
+        # Lock-free: Use signal for updates, simple read for polling fallback
+        self._last_viewport = None
 
         # Adaptive FPS control
         self.adaptive_fps_enabled = True
@@ -199,6 +211,9 @@ class ContinuousCaptureService:
         self.last_frame_time = None
         self.fps_window_start = time.time()
         self.fps_window_frames = 0
+
+        # Modern metrics tracker (replaces manual stats dict for API endpoints)
+        self.metrics = MetricsTracker(window_seconds=600)  # 10 minutes
 
         # Profiling (disabled console spam - use /profiling-stats endpoint instead)
         self.enable_profiling = False
@@ -262,8 +277,10 @@ class ContinuousCaptureService:
             if hasattr(self.tracker, 'dt'):
                 self.tracker.dt = self.frame_interval
 
-            print(f"[Adaptive FPS] {old_fps:.1f} -> {new_fps:.1f} FPS "
-                  f"(processing: {p90_time*1000:.1f}ms, utilization: {utilization*100:.0f}%)")
+    @property
+    def last_viewport(self):
+        """Lock-free getter for latest viewport (atomic read with GIL)"""
+        return self._last_viewport
 
     def start(self):
         """Start continuous capture in background thread."""
@@ -273,6 +290,45 @@ class ContinuousCaptureService:
         self.running = True
         self.thread = threading.Thread(target=self._capture_loop, daemon=True)
         self.thread.start()
+
+    def update_render_lag(self, lag_ms: float, drop_rate: float = 0.0):
+        """
+        Update measured render lag from frontend for adaptive extrapolation.
+        Called by frontend every second with actual measured lag.
+
+        Also adapts backend FPS based on frontend capacity.
+
+        Args:
+            lag_ms: Render lag in milliseconds (P90)
+            drop_rate: Fraction of frames dropped (0.0-1.0)
+        """
+        self.measured_render_lag_ms = lag_ms
+
+        # Adaptive backend pacing based on frame drops
+        # Target: 10-20% frame drop rate (backend runs faster, frontend has fresh data)
+        # Too many drops (>30%): Backend too fast, slow down
+        # Too few drops (<5%): Backend too slow, speed up
+        if drop_rate > 0.3:
+            # Too many drops - backend is overwhelming frontend
+            current_interval = self.frame_interval
+            new_interval = current_interval * 1.2  # Slow down by 20%
+            new_fps = 1.0 / new_interval
+
+            if new_fps >= self.min_fps:
+                self.frame_interval = new_interval
+                print(f"[Adaptive Backend] Drop rate {drop_rate*100:.0f}% too high - reducing to {new_fps:.1f} FPS")
+        elif drop_rate < 0.05 and lag_ms < 30.0:
+            # Very few drops and frontend is fast - backend could go faster
+            current_interval = self.frame_interval
+            new_interval = current_interval * 0.9  # Speed up by 10%
+            new_fps = 1.0 / new_interval
+
+            # Only speed up if we have processing headroom
+            if self.processing_times:
+                avg_processing = sum(self.processing_times) / len(self.processing_times)
+                if avg_processing / 1000.0 < new_interval * 0.7:  # Using <70% of budget
+                    self.frame_interval = new_interval
+                    print(f"[Adaptive Backend] Drop rate {drop_rate*100:.0f}% low, frontend fast - increasing to {new_fps:.1f} FPS")
 
     def stop(self):
         """Stop continuous capture."""
@@ -427,11 +483,19 @@ class ContinuousCaptureService:
         # (Map detector was too strict, causing low success rate)
         map_detect_time = 0
 
-        # Pass RAW screenshot to cascade matcher
+        # Pass RAW screenshot to cascade matcher with timeout
         # Cascade matcher will handle: grayscale  ->  resize  ->  preprocess per level
         match_start = time.time()
-        result = self.matcher.match(screenshot)  # Raw screenshot (BGR)
-        match_time = (time.time() - match_start) * 1000
+
+        # Timeout matcher to 6 seconds max (prevents hanging on failed searches)
+        try:
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(self.matcher.match, screenshot)
+                result = future.result(timeout=6.0)  # 6 second timeout
+            match_time = (time.time() - match_start) * 1000
+        except FuturesTimeoutError:
+            match_time = (time.time() - match_start) * 1000
+            result = None
 
         # Process result
         if result and result.get('success'):
@@ -477,6 +541,9 @@ class ContinuousCaptureService:
                 timestamp=time.time()
             )
 
+            # Update tracker with new viewport
+            self.tracker.update(viewport)
+
             # Pan tracking: Use raw screenshot pixel offset from phase correlation
             # offset_px is movement in screenshot pixels (actual game window resolution)
             # This is the most accurate measurement - direct from phase correlation
@@ -517,11 +584,52 @@ class ContinuousCaptureService:
 
             self.last_viewport_time = current_time
 
-            # Get visible collectibles
+            # Motion extrapolation: Predict where viewport will be when rendered
+            # Use adaptive lag measurement from frontend (updated every second)
+            render_lag_ms = getattr(self, 'measured_render_lag_ms', 15.0)
+            try:
+                prediction = self.tracker.predict()
+                if prediction:
+                    pred_vp = prediction['predicted_viewport']
+                    # Convert center + size to x,y + size
+                    predicted_x = pred_vp['cx'] - pred_vp['width'] / 2
+                    predicted_y = pred_vp['cy'] - pred_vp['height'] / 2
+                else:
+                    # No prediction available - use current viewport
+                    predicted_x = viewport.x
+                    predicted_y = viewport.y
+                    pred_vp = {'width': viewport.width, 'height': viewport.height}
+            except Exception as e:
+                print(f"ERROR in predict_future(): {e}")
+                import traceback
+                traceback.print_exc()
+                # Fallback to current viewport
+                predicted_x = viewport.x
+                predicted_y = viewport.y
+                pred_vp = {'width': viewport.width, 'height': viewport.height}
+
+            # Store predicted viewport for PySide6 overlay (smoother panning)
+            viewport_dict = {
+                'x': predicted_x,
+                'y': predicted_y,
+                'width': pred_vp['width'],
+                'height': pred_vp['height'],
+                'is_predicted': True,
+                'prediction_ms': render_lag_ms
+            }
+
+            # Get visible collectibles (computed on capture thread to avoid blocking UI)
             overlay_start = time.time()
             collectibles = self.collectibles_func(viewport)
             overlay_time = (time.time() - overlay_start) * 1000
             self.stats['overlay_times'].append(overlay_time)
+
+            # Lock-free atomic write (Python dict assignment is atomic with GIL)
+            self._last_viewport = viewport_dict
+
+            # Emit signal on every successful match
+            # Frontend renders at its own rate (60 FPS timer), just uses latest data
+            self.viewport_updated.emit(viewport_dict, collectibles)
 
             # Drift tracking: Pick ONE random collectible that's VISIBLE after initial AKAZE calibration
             # This ensures we immediately start tracking after first frame
@@ -563,6 +671,26 @@ class ContinuousCaptureService:
             # Total time
             total_time = (time.time() - frame_start) * 1000
             self.stats['total_times'].append(total_time)
+
+            # Record to modern metrics tracker
+            frame_type = 'motion' if cascade_info.get('akaze_bypassed') else 'akaze'
+            motion_offset = motion_pred.get('offset_px', (0, 0)) if motion_pred else (0, 0)
+            motion_speed = motion_pred.get('speed_px_s', 0) if motion_pred else 0
+
+            self.metrics.record_frame(
+                capture_ms=capture_time,
+                match_ms=match_time,
+                overlay_ms=overlay_time,
+                total_ms=total_time,
+                confidence=result['confidence'],
+                inliers=result['inliers'],
+                frame_type=frame_type,
+                viewport_width=viewport.width,
+                viewport_height=viewport.height,
+                cascade_level=cascade_level,
+                motion_offset_px=motion_offset,
+                motion_speed_px_s=motion_speed
+            )
 
             # Test data collection: Save outlier frames for optimization
             if self.collect_test_data and self.test_collector:
@@ -621,6 +749,18 @@ class ContinuousCaptureService:
 
         else:
             # Match failed - don't track timing stats for failures
+            # Record failed frame in metrics
+            total_time = (time.time() - frame_start) * 1000
+            self.metrics.record_frame(
+                capture_ms=capture_time,
+                match_ms=match_time,
+                overlay_ms=0,
+                total_ms=total_time,
+                confidence=0,
+                inliers=0,
+                frame_type='failed'
+            )
+
             failed_result = {
                 'success': False,
                 'error': result.get('error', 'Match failed') if result else 'Matcher returned None',
@@ -651,38 +791,12 @@ class ContinuousCaptureService:
         return self.matcher.match(screenshot)
 
     def _set_result(self, result: Dict):
-        """Thread-safe result update and push via WebSocket."""
+        """Thread-safe result update."""
         # Add stats
         result['stats'] = self._get_stats()
 
         with self.result_lock:
             self.latest_result = result
-
-        # Push VIEWPORT-ONLY update to frontend via WebSocket
-        # Frontend keeps all collectibles and transforms them client-side
-        # This reduces payload from ~5KB to ~100 bytes per frame
-        if self.socketio:
-            try:
-                if result.get('success'):
-                    # Send only viewport coordinates (detection space)
-                    viewport_update = {
-                        'success': True,
-                        'viewport': result.get('viewport', {}),
-                        'confidence': result.get('confidence', 0),
-                        'method': result.get('match_type', 'unknown'),
-                        'cascade_level': result.get('cascade_level', 'unknown')
-                    }
-                else:
-                    # Map not visible or match failed
-                    viewport_update = {
-                        'success': False,
-                        'error': result.get('error', 'Match failed')
-                    }
-
-                self.socketio.emit('viewport_update', viewport_update)
-            except Exception:
-                # Silently ignore WebSocket errors (e.g., no clients connected)
-                pass
 
     def _check_and_reload_cycles(self):
         """Check if daily cycle changed and reload collectibles if needed."""
@@ -697,13 +811,6 @@ class ContinuousCaptureService:
                     collectibles = CollectiblesLoader.load(self.state.coord_transform)
                     self.state.set_collectibles(collectibles)
                     print(f"[Cycle Change] Reloaded {len(collectibles)} collectibles")
-
-                    # Notify frontend via WebSocket
-                    if self.socketio:
-                        self.socketio.emit('cycle_changed', {
-                            'message': 'Daily cycle changed - collectibles reloaded',
-                            'count': len(collectibles)
-                        })
                 else:
                     print("[Cycle Change] Warning: state not set, cannot reload collectibles")
         except Exception as e:

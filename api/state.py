@@ -78,19 +78,24 @@ class OverlayState:
             
             # Check bounds against full 1920x1080 screen
             if 0 <= screen_x <= self.SCREEN_WIDTH and 0 <= screen_y <= self.SCREEN_HEIGHT:
-                # Minimal payload - only send what frontend actually uses
+                # Full field names for QML/Canvas compatibility
                 item = {
                     'x': screen_x,
                     'y': screen_y,
-                    't': col.type,  # Shortened: type -> t
-                    'n': col.name   # Shortened: name -> n
+                    'type': col.type,
+                    'name': col.name,
+                    'category': col.category
                 }
 
-                # Optional fields - only include if present (saves bandwidth)
+                # Optional fields - only include if present
                 if col.help:
-                    item['h'] = col.help  # Shortened: help -> h
+                    item['help'] = col.help
                 if col.video:
-                    item['v'] = col.video  # Shortened: video -> v
+                    item['video'] = col.video
+
+                # Map coordinates for drift tracking
+                item['map_x'] = col.x
+                item['map_y'] = col.y
 
                 # Fallback ID coordinates - only if name is missing (rare)
                 if not col.name and col.lat is not None:

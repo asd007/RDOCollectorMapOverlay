@@ -106,6 +106,11 @@ class CascadeScaleMatcher:
         """
         total_start = time.time()
 
+        # Validate input
+        if screenshot_preprocessed is None:
+            print("[CascadeScaleMatcher] ERROR: Input screenshot is None")
+            return None
+
         cascade_info = {
             'levels_tried': [],
             'final_level': None,

@@ -287,10 +287,10 @@ if (-not (Test-Path $headerBmpPath) -or -not (Test-Path $wizardBmpPath)) {
     powershell.exe -ExecutionPolicy Bypass -File "..\scripts\create-bitmaps.ps1" -OutputDir $buildDirAbsolute
 }
 
-# Note: Frontend dependencies (node_modules) will be installed at install time
-# This keeps the installer small - npm install + electron-rebuild happens during installation
+# Note: All Python dependencies including Qt/PySide6 will be installed at install time
+# This keeps the installer small - pip install happens during installation
 Write-Host ""
-Write-Host "Frontend dependencies will be installed during installation (not bundled)" -ForegroundColor Cyan
+Write-Host "Python dependencies will be installed during installation (not bundled)" -ForegroundColor Cyan
 
 # Bundle backend source files using build script
 Write-Host ""
@@ -424,8 +424,8 @@ if ($installer) {
     Write-Host "============================================" -ForegroundColor Green
     Write-Host ""
     Write-Host "The web installer is ready for distribution." -ForegroundColor Cyan
-    Write-Host "It will download ~205MB during installation." -ForegroundColor Cyan
-    Write-Host "Final installation size will be ~400MB." -ForegroundColor Cyan
+    Write-Host "It will download ~250MB during installation." -ForegroundColor Cyan
+    Write-Host "Final installation size will be ~380MB." -ForegroundColor Cyan
 } else {
     Write-Host "ERROR: Installer not found in output directory" -ForegroundColor Red
     exit 1
