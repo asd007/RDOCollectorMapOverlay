@@ -40,25 +40,6 @@ from matching.cascade_scale_matcher import CascadeScaleMatcher, ScaleConfig
 from matching.simple_matcher import SimpleMatcher
 
 
-class GameCaptureHandler(WindowsCapture):
-    """Windows Capture handler for RDR2 game window."""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.latest_frame = None
-
-    def on_frame_arrived(self, frame: Frame, capture_control: InternalCaptureControl):
-        """Callback when new frame arrives."""
-        # Convert frame to numpy array (BGRA format)
-        frame_array = np.array(frame, dtype=np.uint8)
-        height, width = frame.height, frame.width
-        self.latest_frame = frame_array.reshape((height, width, 4))
-
-    def on_closed(self):
-        """Called when capture is closed."""
-        pass
-
-
 class LiveE2ETest:
     """End-to-end test tool for live game screenshots."""
 
@@ -242,27 +223,54 @@ class LiveE2ETest:
         """Capture current game screenshot using Windows Capture API."""
         try:
             # Create capture instance
-            capture = GameCaptureHandler(
+            capture = WindowsCapture(
                 cursor_capture=None,
                 draw_border=None,
                 monitor_index=None,
                 window_name=self.rdr2_window_title
             )
 
-            # Start capture briefly to get one frame
-            capture.start_free_threaded()
-            time.sleep(0.1)  # Wait for frame
+            # Store frame data
+            latest_frame = {'data': None}
 
-            if capture.latest_frame is not None:
+            # Register event handlers using decorator
+            @capture.event
+            def on_frame_arrived(frame: Frame, capture_control: InternalCaptureControl):
+                """Callback when new frame arrives."""
+                # Convert frame to numpy array (BGRA format)
+                frame_array = np.array(frame, dtype=np.uint8)
+                height, width = frame.height, frame.width
+                latest_frame['data'] = frame_array.reshape((height, width, 4))
+
+            @capture.event
+            def on_closed():
+                """Called when capture is closed."""
+                pass
+
+            # Start capture in background thread
+            capture.start_free_threaded()
+
+            # Wait for first frame (up to 500ms)
+            max_wait = 0.5
+            wait_interval = 0.01
+            elapsed = 0
+
+            while latest_frame['data'] is None and elapsed < max_wait:
+                time.sleep(wait_interval)
+                elapsed += wait_interval
+
+            if latest_frame['data'] is not None:
                 # Convert BGRA to BGR
-                img = cv2.cvtColor(capture.latest_frame, cv2.COLOR_BGRA2BGR)
+                img = cv2.cvtColor(latest_frame['data'], cv2.COLOR_BGRA2BGR)
                 return img
             else:
-                print("[ERROR] No frame captured from Windows Capture API")
+                print(f"[ERROR] No frame captured after {max_wait}s")
                 return None
 
         except Exception as e:
             print(f"[ERROR] Screenshot capture failed: {e}")
+            import traceback
+            traceback.print_exc()
             return None
 
     def draw_collectibles(self, screenshot: np.ndarray, visible_collectibles: list) -> np.ndarray:
