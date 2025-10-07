@@ -242,6 +242,9 @@ class LiveE2ETest:
                 height, width = frame.height, frame.width
                 latest_frame['data'] = frame_array.reshape((height, width, 4))
 
+                # Stop capture immediately after first frame
+                capture_control.stop()
+
             @capture.event
             def on_closed():
                 """Called when capture is closed."""
