@@ -45,7 +45,7 @@ class TestCaptureLoopFPSAdaptation:
 
     def test_adapt_fps_high_utilization(self):
         """Test FPS decreases when utilization is high."""
-        loop = CaptureLoop(target_fps=5.0)
+        loop = CaptureLoop(target_fps=5.0, min_fps=1.0)  # Allow FPS to decrease below 5
         initial_fps = loop.target_fps
 
         # Simulate high processing times (>85% utilization)

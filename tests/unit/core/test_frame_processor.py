@@ -99,6 +99,9 @@ class TestFrameProcessorDeduplication:
         s1, dup1, _ = processor.capture_and_preprocess()
         assert dup1 is False
 
+        # Cache a result (deduplication requires cached result)
+        processor.cache_result({'test': 'result'})
+
         # Same frame again
         s2, dup2, _ = processor.capture_and_preprocess()
         assert dup2 is True
@@ -226,8 +229,12 @@ class TestFrameProcessorStatistics:
 
         processor = FrameProcessor(capture, enable_deduplication=True)
 
-        # Capture 5 frames (1 unique, 4 duplicates)
-        for _ in range(5):
+        # Capture first frame and cache result
+        processor.capture_and_preprocess()
+        processor.cache_result({'test': 'result'})
+
+        # Capture 4 more duplicate frames
+        for _ in range(4):
             processor.capture_and_preprocess()
 
         stats = processor.get_stats()

@@ -208,19 +208,23 @@ class TestViewportMonitorPanTracking:
         # Simulate 100 pixels movement in 0.1 seconds = 1000 px/sec
         motion1 = {'offset_px': (60, 80), 'phase_confidence': 0.9}  # 100 pixels (sqrt(60^2 + 80^2))
 
-        monitor.last_viewport_time = 1000.0  # Set baseline time
-        monitor.update_pan_tracking(1, None)  # Initialize
-
-        monitor.last_viewport_time = 1000.0
-        time.sleep(0.001)  # Minimal sleep to avoid test flakiness
-        monitor.last_viewport_time = 1000.1  # Mock 0.1s later
-
-        # Manually set time for deterministic test
+        # Mock time from the beginning for deterministic test
         import core.viewport_monitor
         original_time = time.time
-        time.time = lambda: 1000.1
+        current_time = [1000.0]  # Mutable for incrementing
+
+        def mock_time():
+            return current_time[0]
+
+        time.time = mock_time
 
         try:
+            # Initialize with first frame (no motion)
+            monitor.update_pan_tracking(1, None)
+            assert monitor.last_viewport_time == 1000.0
+
+            # Advance time and add motion
+            current_time[0] = 1000.1  # 0.1 seconds later
             monitor.update_pan_tracking(2, motion1)
 
             assert len(monitor.pan_history) == 1
