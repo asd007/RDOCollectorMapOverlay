@@ -458,8 +458,8 @@ class LiveE2ETest:
         viewport = {
             'map_x': result['map_x'],
             'map_y': result['map_y'],
-            'map_width': result['map_width'],
-            'map_height': result['map_height']
+            'map_width': result['map_w'],
+            'map_height': result['map_h']
         }
 
         visible = filter_visible_collectibles(
