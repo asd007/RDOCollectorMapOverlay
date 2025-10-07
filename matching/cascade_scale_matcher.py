@@ -102,14 +102,22 @@ class CascadeScaleMatcher:
             screenshot_preprocessed: Preprocessed screenshot (grayscale)
 
         Returns:
-            Match result dict with additional 'cascade_info' field, or None
+            Match result dict with additional 'cascade_info' field containing:
+            - On success: 'success': True, viewport coords, cascade details
+            - On failure: 'success': False, 'error': reason, cascade details showing why each level failed
         """
         total_start = time.time()
 
         # Validate input
         if screenshot_preprocessed is None:
             print("[CascadeScaleMatcher] ERROR: Input screenshot is None")
-            return None
+            return {
+                'success': False,
+                'error': 'Input screenshot is None',
+                'confidence': 0.0,
+                'inliers': 0,
+                'cascade_info': {}
+            }
 
         cascade_info = {
             'levels_tried': [],
@@ -372,11 +380,19 @@ class CascadeScaleMatcher:
 
         # All levels tried, none accepted
         cascade_info['total_time_ms'] = (time.time() - total_start) * 1000
+        cascade_info['final_level'] = None
 
         if self.verbose:
             print(f"  All {len(self.cascade_levels)} levels tried, no match found")
 
-        return None
+        # Return failure dict with cascade info for debugging
+        return {
+            'success': False,
+            'error': 'All cascade levels failed quality thresholds',
+            'confidence': 0.0,
+            'inliers': 0,
+            'cascade_info': cascade_info
+        }
 
     @classmethod
     def create_default_cascade(cls, base_matcher: SimpleMatcher, verbose: bool = False):

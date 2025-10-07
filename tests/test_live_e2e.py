@@ -273,6 +273,34 @@ class LiveE2ETest:
 
         return annotated
 
+    def _print_cascade_details(self, cascade_info: Dict):
+        """Print detailed cascade information."""
+        if not cascade_info:
+            return
+
+        print(f"\n  Cascade Details:")
+        print(f"  ----------------")
+        print(f"  Final level: {cascade_info.get('final_level', 'unknown')}")
+        print(f"  Match type: {cascade_info.get('match_type', 'unknown')}")
+        print(f"  ROI used: {cascade_info.get('roi_used', False)}")
+        print(f"  Prediction used: {cascade_info.get('prediction_used', False)}")
+
+        levels_tried = cascade_info.get('levels_tried', [])
+        if levels_tried:
+            print(f"\n  Cascade Levels Tried ({len(levels_tried)}):")
+            for level in levels_tried:
+                scale = level.get('scale', 0)
+                confidence = level.get('confidence', 0)
+                inliers = level.get('inliers', 0)
+                total_matches = level.get('total_matches', 0)
+                time_ms = level.get('time_ms', 0)
+                accepted = level.get('accepted', False)
+                success = level.get('success', False)
+
+                status = "[ACCEPTED]" if accepted else "[REJECTED]" if success else "[FAILED]"
+                print(f"    {status} Scale {scale:.0%}: conf={confidence:.2%}, "
+                      f"inliers={inliers}, matches={total_matches}, time={time_ms:.1f}ms")
+
     def run_test(self) -> Dict:
         """Run a single E2E test on the current game screenshot."""
         timestamp = datetime.now()
@@ -303,41 +331,27 @@ class LiveE2ETest:
         if not result or not result.get('success'):
             error = result.get('error', 'Unknown error') if result else 'Matcher returned None'
             print(f"  [FAIL] Matching failed: {error}")
+            print(f"  Match time: {match_time:.1f}ms")
+
+            # Show cascade details even for failed matches
+            cascade_info = result.get('cascade_info', {}) if result else {}
+            self._print_cascade_details(cascade_info)
+
             return {
                 'success': False,
                 'error': error,
                 'capture_time_ms': capture_time,
-                'match_time_ms': match_time
+                'match_time_ms': match_time,
+                'cascade_info': cascade_info
             }
 
         print(f"  [SUCCESS] Match time: {match_time:.1f}ms")
         print(f"  Confidence: {result['confidence']:.2%}")
         print(f"  Inliers: {result['inliers']}")
 
+        # Show cascade details
         cascade_info = result.get('cascade_info', {})
-        if cascade_info:
-            print(f"\n  Cascade Details:")
-            print(f"  ----------------")
-            print(f"  Final level: {cascade_info.get('final_level', 'unknown')}")
-            print(f"  Match type: {cascade_info.get('match_type', 'unknown')}")
-            print(f"  ROI used: {cascade_info.get('roi_used', False)}")
-            print(f"  Prediction used: {cascade_info.get('prediction_used', False)}")
-
-            levels_tried = cascade_info.get('levels_tried', [])
-            if levels_tried:
-                print(f"\n  Cascade Levels Tried ({len(levels_tried)}):")
-                for level in levels_tried:
-                    scale = level.get('scale', 0)
-                    confidence = level.get('confidence', 0)
-                    inliers = level.get('inliers', 0)
-                    total_matches = level.get('total_matches', 0)
-                    time_ms = level.get('time_ms', 0)
-                    accepted = level.get('accepted', False)
-                    success = level.get('success', False)
-
-                    status = "[ACCEPTED]" if accepted else "[REJECTED]" if success else "[FAILED]"
-                    print(f"    {status} Scale {scale:.0%}: conf={confidence:.2%}, "
-                          f"inliers={inliers}, matches={total_matches}, time={time_ms:.1f}ms")
+        self._print_cascade_details(cascade_info)
 
         # Step 3: Filter collectibles
         print(f"\n[3/{total_steps}] Filtering collectibles...")
