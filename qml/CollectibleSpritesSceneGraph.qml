@@ -17,8 +17,11 @@ CollectibleRendererSceneGraph {
     id: root
     objectName: "spritesSceneGraph"  // Required for findChild() in app_qml.py
 
-    // Fill parent window
-    anchors.fill: parent
+    // Explicit fullscreen size (anchors weren't working - item stayed 0x0)
+    width: 1920
+    height: 1080
+    x: 0
+    y: 0
 
     // Always behind other UI elements
     z: 0
