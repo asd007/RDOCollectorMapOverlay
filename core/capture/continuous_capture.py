@@ -397,7 +397,7 @@ class ContinuousCaptureService(QObject):
             confidence=match_result['confidence'],
             inliers=match_result['inliers'],
             frame_type=frame_type,
-            motion_offset=motion_offset,
+            motion_offset_px=motion_offset,
             cascade_level=cascade_info.get('final_level', 'unknown')
         )
 
