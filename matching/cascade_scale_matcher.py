@@ -368,15 +368,31 @@ class CascadeScaleMatcher:
                               f"{level_time:.2f}ms, conf={result['confidence']:.3f}, "
                               f"inliers={result['inliers']} - REJECTED (quality too low)")
             else:
-                # Match failed
-                level_info['confidence'] = 0.0
-                level_info['inliers'] = 0
+                # Match failed - but extract ACTUAL AKAZE numbers if available
+                if result:
+                    # Matcher returned a result dict, extract real values
+                    level_info['confidence'] = result.get('confidence', 0.0)
+                    level_info['inliers'] = result.get('inliers', 0)
+                    level_info['total_matches'] = result.get('total_matches', 0)
+                    level_info['error'] = result.get('error', 'Unknown')
+                else:
+                    # Matcher returned None
+                    level_info['confidence'] = 0.0
+                    level_info['inliers'] = 0
+                    level_info['total_matches'] = 0
+                    level_info['error'] = 'Matcher returned None'
+
                 level_info['accepted'] = False
                 cascade_info['levels_tried'].append(level_info)
 
                 if self.verbose:
-                    print(f"  Level {i+1}/{len(self.cascade_levels)} ({level.name}): "
-                          f"{level_time:.2f}ms - FAILED")
+                    if result:
+                        print(f"  Level {i+1}/{len(self.cascade_levels)} ({level.name}): "
+                              f"{level_time:.2f}ms, conf={level_info['confidence']:.3f}, "
+                              f"inliers={level_info['inliers']} - FAILED ({level_info['error']})")
+                    else:
+                        print(f"  Level {i+1}/{len(self.cascade_levels)} ({level.name}): "
+                              f"{level_time:.2f}ms - FAILED (None result)")
 
         # All levels tried, none accepted
         cascade_info['total_time_ms'] = (time.time() - total_start) * 1000

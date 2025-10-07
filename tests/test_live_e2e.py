@@ -296,10 +296,16 @@ class LiveE2ETest:
                 time_ms = level.get('time_ms', 0)
                 accepted = level.get('accepted', False)
                 success = level.get('success', False)
+                error = level.get('error', '')
 
                 status = "[ACCEPTED]" if accepted else "[REJECTED]" if success else "[FAILED]"
-                print(f"    {status} Scale {scale:.0%}: conf={confidence:.2%}, "
-                      f"inliers={inliers}, matches={total_matches}, time={time_ms:.1f}ms")
+                line = f"    {status} Scale {scale:.0%}: conf={confidence:.2%}, inliers={inliers}, matches={total_matches}, time={time_ms:.1f}ms"
+
+                # Add error reason for failed matches
+                if not success and error:
+                    line += f" - {error}"
+
+                print(line)
 
     def run_test(self) -> Dict:
         """Run a single E2E test on the current game screenshot."""
