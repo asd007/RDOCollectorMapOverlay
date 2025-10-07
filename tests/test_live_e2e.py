@@ -316,10 +316,28 @@ class LiveE2ETest:
 
         cascade_info = result.get('cascade_info', {})
         if cascade_info:
-            print(f"  Cascade level: {cascade_info.get('final_level', 'unknown')}")
-            print(f"  Levels tried: {len(cascade_info.get('levels_tried', []))}")
+            print(f"\n  Cascade Details:")
+            print(f"  ----------------")
+            print(f"  Final level: {cascade_info.get('final_level', 'unknown')}")
+            print(f"  Match type: {cascade_info.get('match_type', 'unknown')}")
             print(f"  ROI used: {cascade_info.get('roi_used', False)}")
             print(f"  Prediction used: {cascade_info.get('prediction_used', False)}")
+
+            levels_tried = cascade_info.get('levels_tried', [])
+            if levels_tried:
+                print(f"\n  Cascade Levels Tried ({len(levels_tried)}):")
+                for level in levels_tried:
+                    scale = level.get('scale', 0)
+                    confidence = level.get('confidence', 0)
+                    inliers = level.get('inliers', 0)
+                    total_matches = level.get('total_matches', 0)
+                    time_ms = level.get('time_ms', 0)
+                    accepted = level.get('accepted', False)
+                    success = level.get('success', False)
+
+                    status = "[ACCEPTED]" if accepted else "[REJECTED]" if success else "[FAILED]"
+                    print(f"    {status} Scale {scale:.0%}: conf={confidence:.2%}, "
+                          f"inliers={inliers}, matches={total_matches}, time={time_ms:.1f}ms")
 
         # Step 3: Filter collectibles
         print(f"\n[3/{total_steps}] Filtering collectibles...")
@@ -382,9 +400,11 @@ class LiveE2ETest:
             'match_info': {
                 'confidence': result['confidence'],
                 'inliers': result['inliers'],
+                'match_type': cascade_info.get('match_type', 'unknown'),
                 'cascade_level': cascade_info.get('final_level', 'unknown'),
                 'roi_used': cascade_info.get('roi_used', False),
-                'prediction_used': cascade_info.get('prediction_used', False)
+                'prediction_used': cascade_info.get('prediction_used', False),
+                'levels_tried': cascade_info.get('levels_tried', [])
             },
             'collectibles': {
                 'total': len(visible),
