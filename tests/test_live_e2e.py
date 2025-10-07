@@ -17,6 +17,7 @@ import sys
 import time
 import json
 import argparse
+import threading
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, Optional
@@ -37,28 +38,6 @@ from core.collectibles.collectibles_filter import filter_visible_collectibles
 from core.map.coordinate_transform import CoordinateTransform
 from matching.cascade_scale_matcher import CascadeScaleMatcher, ScaleConfig
 from matching.simple_matcher import SimpleMatcher
-
-
-class GameCaptureHandler(WindowsCapture):
-    """Capture handler for single frame capture."""
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.latest_frame = None
-
-    def on_frame_arrived(self, frame: Frame, capture_control: InternalCaptureControl):
-        """Callback when new frame arrives."""
-        # Convert frame to numpy array (BGRA format)
-        frame_array = np.array(frame, dtype=np.uint8)
-        height, width = frame.height, frame.width
-        self.latest_frame = frame_array.reshape((height, width, 4))
-
-        # Stop capture immediately after first frame
-        capture_control.stop()
-
-    def on_closed(self):
-        """Called when capture is closed."""
-        pass
 
 
 class LiveE2ETest:
@@ -86,8 +65,13 @@ class LiveE2ETest:
         self.visualize = visualize
         self.show_window = show_window
         self.output_dir = Path("tests/e2e_results")
-        self.game_capture = None
         self.rdr2_window_title = None
+
+        # Windows Capture API state
+        self.game_capture = None
+        self.latest_frame = None
+        self.frame_lock = threading.Lock()
+        self.frame_count = 0
 
         if save_results or visualize:
             self.output_dir.mkdir(exist_ok=True)
@@ -100,6 +84,7 @@ class LiveE2ETest:
             raise RuntimeError("RDR2 window not found! Make sure the game is running and the map is open.")
 
         print("Initializing E2E test tool...")
+        self._initialize_capture()
         self._initialize_matcher()
         self._initialize_collectibles()
         print("Initialization complete!\n")
@@ -122,6 +107,43 @@ class LiveE2ETest:
                 return window['title']
 
         return None
+
+    def _initialize_capture(self):
+        """Initialize Windows Capture API (continuous capture like app_qml.py)."""
+        print("Starting Windows Capture API...")
+
+        self.game_capture = WindowsCapture(
+            window_name=self.rdr2_window_title,
+            cursor_capture=False,
+            minimum_update_interval=16
+        )
+
+        @self.game_capture.event
+        def on_frame_arrived(frame, capture_control):
+            with self.frame_lock:
+                self.latest_frame = frame.frame_buffer.copy()
+                self.frame_count += 1
+                if self.frame_count == 1:
+                    print(f"  [SUCCESS] First frame received ({frame.frame_buffer.shape})")
+
+        @self.game_capture.event
+        def on_closed():
+            print("  [WARN] Game window closed")
+
+        self.game_capture.start_free_threaded()
+        print("  Windows Capture started, waiting for first frame...")
+
+        # Wait for first frame
+        max_wait = 2.0
+        wait_interval = 0.01
+        elapsed = 0
+
+        while self.latest_frame is None and elapsed < max_wait:
+            time.sleep(wait_interval)
+            elapsed += wait_interval
+
+        if self.latest_frame is None:
+            raise RuntimeError(f"No frame captured after {max_wait}s. Make sure game window is visible.")
 
     def _initialize_matcher(self):
         """Initialize the cascade matcher using same cache as application."""
@@ -241,37 +263,16 @@ class LiveE2ETest:
             self.collectibles = []
 
     def capture_screenshot(self) -> Optional[np.ndarray]:
-        """Capture current game screenshot using Windows Capture API."""
+        """Get current game screenshot from continuous capture."""
         try:
-            # Create capture instance using class-based approach
-            capture = GameCaptureHandler(
-                cursor_capture=None,
-                draw_border=None,
-                monitor_index=None,
-                window_name=self.rdr2_window_title
-            )
+            with self.frame_lock:
+                if self.latest_frame is None:
+                    print(f"[ERROR] No frame available")
+                    return None
 
-            # Start capture in background thread
-            capture.start_free_threaded()
-
-            # Wait for first frame (up to 2 seconds for initial capture)
-            max_wait = 2.0
-            wait_interval = 0.01
-            elapsed = 0
-
-            while capture.latest_frame is None and elapsed < max_wait:
-                time.sleep(wait_interval)
-                elapsed += wait_interval
-
-            if capture.latest_frame is not None:
                 # Convert BGRA to BGR
-                img = cv2.cvtColor(capture.latest_frame, cv2.COLOR_BGRA2BGR)
+                img = cv2.cvtColor(self.latest_frame, cv2.COLOR_BGRA2BGR)
                 return img
-            else:
-                print(f"[ERROR] No frame captured after {max_wait}s")
-                print(f"[ERROR] Window title: {self.rdr2_window_title}")
-                print(f"[ERROR] Make sure the game window is visible and not minimized")
-                return None
 
         except Exception as e:
             print(f"[ERROR] Screenshot capture failed: {e}")
