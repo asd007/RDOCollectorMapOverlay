@@ -32,7 +32,7 @@ import mss
 from config import MAP_DIMENSIONS
 from config.paths import CachePaths
 from core.matching.image_preprocessing import preprocess_with_resize
-from core.collectibles.collectibles_loader import CollectiblesLoader
+from core.collectibles.collectibles_repository import CollectiblesRepository
 from core.collectibles.collectibles_filter import filter_visible_collectibles
 from core.map.coordinate_transform import CoordinateTransform
 from matching.cascade_scale_matcher import CascadeScaleMatcher, ScaleConfig
@@ -76,7 +76,7 @@ class LiveE2ETest:
         print("Initialization complete!\n")
 
     def _initialize_matcher(self):
-        """Initialize the cascade matcher."""
+        """Initialize the cascade matcher using same cache as application."""
         print("Loading map and initializing matcher...")
 
         # Load HQ map
@@ -84,9 +84,39 @@ class LiveE2ETest:
         if not hq_source or not hq_source.exists():
             raise FileNotFoundError("HQ map not found!")
 
-        hq_map = cv2.imread(str(hq_source))
-        self.detection_map = preprocess_with_resize(hq_map, scale=MAP_DIMENSIONS.DETECTION_SCALE)
-        print(f"  Map loaded: {self.detection_map.shape[1]}x{self.detection_map.shape[0]}")
+        # Use feature cache (same as app_qml.py)
+        from core.map.feature_cache import FeatureCache
+
+        cache_params = {
+            'scale': MAP_DIMENSIONS.DETECTION_SCALE,
+            'max_features': 0,
+            'use_spatial_distribution': True,
+            'spatial_grid_size': 50
+        }
+
+        cache_paths = CachePaths()
+        feature_cache = FeatureCache(cache_paths.CACHE_DIR)
+        cached_data = feature_cache.load(hq_source, cache_params)
+
+        if cached_data:
+            print("  [CACHE] Loading preprocessed map and features from cache...")
+            self.detection_map, keypoint_data, descriptors = cached_data
+            keypoints = FeatureCache.keypoints_from_data(keypoint_data)
+            print(f"  [CACHE] Loaded {len(keypoints)} features from cache")
+            print(f"  Detection map: {self.detection_map.shape[1]}x{self.detection_map.shape[0]}")
+        else:
+            print("  [CACHE] No valid cache found, computing features...")
+            hq_map = cv2.imread(str(hq_source))
+            self.detection_map = preprocess_with_resize(hq_map, scale=MAP_DIMENSIONS.DETECTION_SCALE)
+            print(f"  Detection map: {self.detection_map.shape[1]}x{self.detection_map.shape[0]}")
+
+            # Compute features
+            detector = cv2.AKAZE_create()
+            keypoints, descriptors = detector.detectAndCompute(self.detection_map, None)
+            print(f"  Detected {len(keypoints)} features")
+
+            # Save to cache
+            feature_cache.save(hq_source, cache_params, self.detection_map, keypoints, descriptors)
 
         # Initialize base matcher
         base_matcher = SimpleMatcher(
@@ -101,8 +131,17 @@ class LiveE2ETest:
             use_flann=False,
             use_gpu=True
         )
-        base_matcher.compute_reference_features(self.detection_map)
+
+        # Set features directly from cache (same as app_qml.py)
+        from matching.spatial_keypoint_index import SpatialKeypointIndex
+        base_matcher.kp_map = keypoints
+        base_matcher.desc_map = descriptors
         print(f"  Map features: {len(base_matcher.kp_map)}")
+
+        # Build spatial index
+        print("  Building spatial index for ROI filtering...")
+        base_matcher.spatial_index = SpatialKeypointIndex(base_matcher.kp_map)
+        print(f"  Spatial index ready")
 
         # Create cascade configuration (production config)
         cascade_levels = [
@@ -145,10 +184,9 @@ class LiveE2ETest:
         """Load collectibles data."""
         print("Loading collectibles...")
         self.coord_transform = CoordinateTransform()
-        self.collectibles_loader = CollectiblesLoader()
 
         try:
-            self.collectibles = self.collectibles_loader.load_all_collectibles()
+            self.collectibles = CollectiblesRepository.load(self.coord_transform)
             print(f"  Loaded {len(self.collectibles)} collectibles")
         except Exception as e:
             print(f"  Warning: Could not load collectibles: {e}")

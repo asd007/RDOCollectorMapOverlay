@@ -1,4 +1,4 @@
-"""Collectibles loading from Ropke API"""
+"""Collectibles repository - fetches and transforms collectibles from Ropke API"""
 
 import requests
 from datetime import datetime, timezone
@@ -8,8 +8,15 @@ from core.map.coordinate_transform import CoordinateTransform
 from config import COLLECTIBLES, EXTERNAL_URLS
 
 
-class CollectiblesLoader:
-    """Loads collectibles from Joan Ropke's API"""
+class CollectiblesRepository:
+    """
+    Repository for collectibles data from Joan Ropke's API.
+
+    Handles:
+    - Fetching collectibles from external API
+    - Transforming coordinates (LatLng -> HQ -> Detection)
+    - Daily cycle management
+    """
 
     # Cache for language data
     _lang_data_cache = None
@@ -21,17 +28,17 @@ class CollectiblesLoader:
     @staticmethod
     def _load_lang_data():
         """Load language data (hints and video links) from en.json"""
-        if CollectiblesLoader._lang_data_cache is not None:
-            return CollectiblesLoader._lang_data_cache
+        if CollectiblesRepository._lang_data_cache is not None:
+            return CollectiblesRepository._lang_data_cache
 
         try:
             response = requests.get(
                 "https://raw.githubusercontent.com/jeanropke/RDR2CollectorsMap/refs/heads/master/langs/en.json",
                 timeout=COLLECTIBLES.API_TIMEOUT_SECONDS
             )
-            CollectiblesLoader._lang_data_cache = response.json()
-            print(f"Loaded language data with {len(CollectiblesLoader._lang_data_cache)} entries")
-            return CollectiblesLoader._lang_data_cache
+            CollectiblesRepository._lang_data_cache = response.json()
+            print(f"Loaded language data with {len(CollectiblesRepository._lang_data_cache)} entries")
+            return CollectiblesRepository._lang_data_cache
         except Exception as e:
             print(f"Failed to load language data: {e}")
             return {}
@@ -57,10 +64,10 @@ class CollectiblesLoader:
                 timeout=COLLECTIBLES.API_TIMEOUT_SECONDS
             )
             items = response.json()
-            active_cycles = CollectiblesLoader._get_active_cycles()
+            active_cycles = CollectiblesRepository._get_active_cycles()
 
             # Load language data for hints and videos
-            lang_data = CollectiblesLoader._load_lang_data()
+            lang_data = CollectiblesRepository._load_lang_data()
 
             collectibles = []
             for category, cycles_dict in items.items():
@@ -78,7 +85,7 @@ class CollectiblesLoader:
                         video_url = item.get('video', '')
 
                         # Get hint and video for this item
-                        hint, video = CollectiblesLoader._get_hint_and_video(item_text, cycle, video_url, lang_data)
+                        hint, video = CollectiblesRepository._get_hint_and_video(item_text, cycle, video_url, lang_data)
 
                         hq_x, hq_y = coord_transform.latlng_to_hq(lat, lng)
                         detection_x, detection_y = coord_transform.hq_to_detection(hq_x, hq_y)
@@ -115,8 +122,8 @@ class CollectiblesLoader:
             for entry in cycles_data:
                 if entry.get('date') == today:
                     # Update cycle tracking
-                    CollectiblesLoader._last_cycle_date = today
-                    CollectiblesLoader._last_cycles = entry
+                    CollectiblesRepository._last_cycle_date = today
+                    CollectiblesRepository._last_cycles = entry
                     return entry
         except:
             pass
@@ -139,14 +146,14 @@ class CollectiblesLoader:
             today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
 
             # Check if date changed
-            if CollectiblesLoader._last_cycle_date != today:
-                print(f"[Cycle Check] Date changed: {CollectiblesLoader._last_cycle_date} -> {today}")
+            if CollectiblesRepository._last_cycle_date != today:
+                print(f"[Cycle Check] Date changed: {CollectiblesRepository._last_cycle_date} -> {today}")
                 return True
 
             # Check if cycles changed for today
             for entry in cycles_data:
                 if entry.get('date') == today:
-                    if CollectiblesLoader._last_cycles != entry:
+                    if CollectiblesRepository._last_cycles != entry:
                         print(f"[Cycle Check] Cycles updated for {today}")
                         return True
                     return False  # Same date, same cycles

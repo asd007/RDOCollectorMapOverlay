@@ -90,7 +90,7 @@ class TestCycleManagerTiming:
 class TestCycleManagerCheckAndReload:
     """Test cycle checking and reloading."""
 
-    @patch('core.collectibles.collectibles_loader.CollectiblesLoader')
+    @patch('core.collectibles.collectibles_repository.CollectiblesRepository')
     def test_check_and_reload_no_cycle_change(self, mock_loader):
         """Test when no cycle change is detected."""
         mock_loader.check_cycle_changed.return_value = False
@@ -105,7 +105,7 @@ class TestCycleManagerCheckAndReload:
         assert manager.cycle_changes_detected == 0
         assert manager.reload_successes == 0
 
-    @patch('core.collectibles.collectibles_loader.CollectiblesLoader')
+    @patch('core.collectibles.collectibles_repository.CollectiblesRepository')
     def test_check_and_reload_with_cycle_change(self, mock_loader):
         """Test successful reload when cycle changes."""
         mock_loader.check_cycle_changed.return_value = True
@@ -131,7 +131,7 @@ class TestCycleManagerCheckAndReload:
         state.set_collectibles.assert_called_once_with(mock_collectibles)
         mock_loader.load.assert_called_once_with(state.coord_transform)
 
-    @patch('core.collectibles.collectibles_loader.CollectiblesLoader')
+    @patch('core.collectibles.collectibles_repository.CollectiblesRepository')
     def test_check_and_reload_with_null_state(self, mock_loader):
         """Test handling of null state."""
         mock_loader.check_cycle_changed.return_value = True
@@ -145,7 +145,7 @@ class TestCycleManagerCheckAndReload:
         assert manager.reload_failures == 1
         assert manager.reload_successes == 0
 
-    @patch('core.collectibles.collectibles_loader.CollectiblesLoader')
+    @patch('core.collectibles.collectibles_repository.CollectiblesRepository')
     def test_check_and_reload_with_loader_exception(self, mock_loader):
         """Test handling of exception during reload."""
         mock_loader.check_cycle_changed.side_effect = RuntimeError("API error")
@@ -159,7 +159,7 @@ class TestCycleManagerCheckAndReload:
         assert manager.total_checks == 1
         assert manager.reload_failures == 1
 
-    @patch('core.collectibles.collectibles_loader.CollectiblesLoader')
+    @patch('core.collectibles.collectibles_repository.CollectiblesRepository')
     def test_check_and_reload_with_load_exception(self, mock_loader):
         """Test handling of exception during collectibles load."""
         mock_loader.check_cycle_changed.return_value = True
@@ -176,7 +176,7 @@ class TestCycleManagerCheckAndReload:
         assert manager.reload_failures == 1
         assert manager.reload_successes == 0
 
-    @patch('core.collectibles.collectibles_loader.CollectiblesLoader')
+    @patch('core.collectibles.collectibles_repository.CollectiblesRepository')
     def test_check_and_reload_multiple_times(self, mock_loader):
         """Test multiple check and reload cycles."""
         # First check: no change
@@ -255,7 +255,7 @@ class TestCycleManagerStatistics:
         # Should be 0 or negative (clamped to 0)
         assert late_stats['seconds_until_next_check'] == 0
 
-    @patch('core.collectibles.collectibles_loader.CollectiblesLoader')
+    @patch('core.collectibles.collectibles_repository.CollectiblesRepository')
     def test_get_stats_after_checks(self, mock_loader):
         """Test statistics after performing checks."""
         mock_loader.check_cycle_changed.return_value = True
@@ -323,7 +323,7 @@ class TestCycleManagerReset:
         # Should not trigger immediately after reset
         assert manager.should_check_now() is False
 
-    @patch('core.collectibles.collectibles_loader.CollectiblesLoader')
+    @patch('core.collectibles.collectibles_repository.CollectiblesRepository')
     def test_reset_after_checks(self, mock_loader):
         """Test reset after performing checks."""
         mock_loader.check_cycle_changed.return_value = True
@@ -377,7 +377,7 @@ class TestCycleManagerEdgeCases:
         assert manager.should_check_now() is True
         assert manager.should_check_now() is True
 
-    @patch('core.collectibles.collectibles_loader.CollectiblesLoader')
+    @patch('core.collectibles.collectibles_repository.CollectiblesRepository')
     def test_empty_collectibles_reload(self, mock_loader):
         """Test reload with empty collectibles list."""
         mock_loader.check_cycle_changed.return_value = True
@@ -394,7 +394,7 @@ class TestCycleManagerEdgeCases:
         assert manager.reload_successes == 1
         state.set_collectibles.assert_called_once_with([])
 
-    @patch('core.collectibles.collectibles_loader.CollectiblesLoader')
+    @patch('core.collectibles.collectibles_repository.CollectiblesRepository')
     def test_state_without_set_collectibles_method(self, mock_loader):
         """Test handling when state doesn't have set_collectibles method."""
         mock_loader.check_cycle_changed.return_value = True

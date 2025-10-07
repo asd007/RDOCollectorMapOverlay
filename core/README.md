@@ -26,7 +26,7 @@ Loads and caches the reference map:
 ### `collectibles_loader.py`
 Fetches collectible data from Joan Ropke's API:
 
-- **CollectiblesLoader class**: Downloads items.json and cycles.json
+- **CollectiblesRepository class**: Downloads items.json and cycles.json
 - **Daily cycles**: Identifies active collectibles for current game day
 - **Coordinate conversion**: Transforms LatLng → HQ → Detection for matching
 - **Functions**: `load_collectibles()` returns list of Collectible objects
@@ -66,7 +66,7 @@ Image enhancement for better feature matching:
 
 ```python
 from core.map_loader import MapLoader
-from core.collectibles_loader import CollectiblesLoader
+from core.collectibles_loader import CollectiblesRepository
 from core.continuous_capture import ContinuousCapture
 
 # Load map
@@ -74,7 +74,7 @@ map_loader = MapLoader()
 hq_map, detection_map = map_loader.load()
 
 # Load collectibles
-collectibles = CollectiblesLoader.load_collectibles()
+collectibles = CollectiblesRepository.load_collectibles()
 
 # Start continuous capture
 capture = ContinuousCapture()

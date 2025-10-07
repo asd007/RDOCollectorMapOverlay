@@ -333,8 +333,8 @@ class CycleManager:
 
     def reload_cycles(self, state):
         """Reload collectibles from Joan Ropke API."""
-        from core import CollectiblesLoader
-        collectibles = CollectiblesLoader.load(state.coord_transform)
+        from core import CollectiblesRepository
+        collectibles = CollectiblesRepository.load(state.coord_transform)
         state.set_collectibles(collectibles)
 ```
 

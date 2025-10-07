@@ -68,10 +68,10 @@ class CycleManager:
         self.total_checks += 1
 
         try:
-            from core.collectibles.collectibles_loader import CollectiblesLoader
+            from core.collectibles.collectibles_repository import CollectiblesRepository
 
             # Check if daily cycle changed
-            cycle_changed = CollectiblesLoader.check_cycle_changed()
+            cycle_changed = CollectiblesRepository.check_cycle_changed()
 
             if cycle_changed:
                 self.cycle_changes_detected += 1
@@ -83,7 +83,7 @@ class CycleManager:
                     return False
 
                 # Reload collectibles from Joan Ropke API
-                collectibles = CollectiblesLoader.load(state.coord_transform)
+                collectibles = CollectiblesRepository.load(state.coord_transform)
                 state.set_collectibles(collectibles)
 
                 self.reload_successes += 1
