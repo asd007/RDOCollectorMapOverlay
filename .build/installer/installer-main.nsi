@@ -19,8 +19,8 @@ SetCompressorDictSize 64
 
 ; MUI Settings
 !define MUI_ABORTWARNING
-!define MUI_ICON "..\..\frontend\icon.ico"
-!define MUI_UNICON "..\..\frontend\icon.ico"
+!define MUI_ICON "..\..\icon.ico"
+!define MUI_UNICON "..\..\icon.ico"
 !define MUI_HEADERIMAGE
 !define MUI_HEADERIMAGE_BITMAP "..\..\build\installer\header.bmp"  ; 150x57 pixels
 !define MUI_WELCOMEFINISHPAGE_BITMAP "..\..\build\installer\wizard.bmp"  ; 164x314 pixels

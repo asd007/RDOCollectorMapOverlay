@@ -1,5 +1,7 @@
 # Folder Structure Review & Recommendations
 
+> **Windows Development Environment**: This project is developed and deployed on Windows. All scripts and commands use PowerShell. CI/CD pipelines run on `windows-latest`.
+
 ## Current Structure Analysis
 
 ### Strengths ✅
@@ -29,7 +31,6 @@
    - No `src/` directory
 
 4. **Unclear purposes**
-   - `frontend/` - Legacy Electron code?
    - `analysis/`, `debug/`, `visualizations/` - Dev tools vs production?
    - `tools/`, `utils/` - Empty or minimal content?
    - `scenegraph_customgeometry/` - Experimental code?
@@ -143,10 +144,6 @@ rdo_overlay/
 │   │       ├── port_manager.py
 │   │       └── map_downloader.py
 │   │
-│   └── legacy/                # NEW: Legacy code (Electron)
-│       └── frontend/          # Old Electron frontend
-│           └── ... (existing frontend/)
-│
 ├── tests/                     # All test code
 │   ├── __init__.py            # Make tests importable
 │   ├── conftest.py            # Pytest configuration & global fixtures
@@ -247,12 +244,12 @@ rdo_overlay/
 │   ├── images/
 │   └── ui-mockups/
 │
-├── scripts/                   # Development scripts
-│   ├── setup.sh              # Setup script for dev environment
-│   ├── run_tests.sh          # Run test suite
-│   ├── format_code.sh        # Code formatting (black, isort)
-│   ├── lint.sh               # Linting (flake8, mypy)
-│   └── build.sh              # Build script
+├── scripts/                   # Development scripts (PowerShell for Windows)
+│   ├── setup.ps1             # Setup script for dev environment
+│   ├── run_tests.ps1         # Run test suite
+│   ├── format_code.ps1       # Code formatting (black, isort)
+│   ├── lint.ps1              # Linting (flake8, mypy)
+│   └── build.ps1             # Build script
 │
 ├── tools/                     # Development tools
 │   ├── test_data_collector.py
@@ -283,12 +280,19 @@ rdo_overlay/
 
 **Steps:**
 
-1. **Create test structure**:
-   ```bash
-   mkdir -p tests/{unit,integration,e2e,performance,fixtures,helpers,real_data}
-   mkdir -p tests/unit/{core,matching,preprocessing,models}
-   mkdir -p tests/integration
-   mkdir -p tests/e2e
+1. **Create test structure** (PowerShell):
+   ```powershell
+   # Create test directories
+   New-Item -ItemType Directory -Force -Path tests\unit\core
+   New-Item -ItemType Directory -Force -Path tests\unit\matching
+   New-Item -ItemType Directory -Force -Path tests\unit\preprocessing
+   New-Item -ItemType Directory -Force -Path tests\unit\models
+   New-Item -ItemType Directory -Force -Path tests\integration
+   New-Item -ItemType Directory -Force -Path tests\e2e
+   New-Item -ItemType Directory -Force -Path tests\performance
+   New-Item -ItemType Directory -Force -Path tests\fixtures
+   New-Item -ItemType Directory -Force -Path tests\helpers
+   New-Item -ItemType Directory -Force -Path tests\real_data
    ```
 
 2. **Create conftest.py files**:
@@ -371,23 +375,33 @@ rdo_overlay/
 
 **Steps:**
 
-1. **Create src structure**:
-   ```bash
-   mkdir -p src/rdo_overlay
+1. **Create src structure** (PowerShell):
+   ```powershell
+   New-Item -ItemType Directory -Force -Path src\rdo_overlay
    ```
 
-2. **Move packages**:
-   ```bash
-   mv api core matching models config src/rdo_overlay/
+2. **Move packages** (PowerShell):
+   ```powershell
+   Move-Item -Path api,core,matching,models,config -Destination src\rdo_overlay\
    ```
 
-3. **Reorganize qml → ui**:
-   ```bash
-   mkdir -p src/rdo_overlay/ui/{python,qml,renderers,theme}
-   mv qml/*.py src/rdo_overlay/ui/python/
-   mv qml/*.qml src/rdo_overlay/ui/qml/
-   mv qml/renderers src/rdo_overlay/ui/
-   mv qml/theme src/rdo_overlay/ui/
+3. **Reorganize qml → ui** (PowerShell):
+   ```powershell
+   # Create UI structure
+   New-Item -ItemType Directory -Force -Path src\rdo_overlay\ui\python
+   New-Item -ItemType Directory -Force -Path src\rdo_overlay\ui\qml
+   New-Item -ItemType Directory -Force -Path src\rdo_overlay\ui\renderers
+   New-Item -ItemType Directory -Force -Path src\rdo_overlay\ui\theme
+
+   # Move Python files
+   Move-Item -Path qml\*.py -Destination src\rdo_overlay\ui\python\
+
+   # Move QML files
+   Move-Item -Path qml\*.qml -Destination src\rdo_overlay\ui\qml\
+
+   # Move subdirectories
+   Move-Item -Path qml\renderers -Destination src\rdo_overlay\ui\
+   Move-Item -Path qml\theme -Destination src\rdo_overlay\ui\
    ```
 
 4. **Update entry points**:
@@ -426,17 +440,17 @@ rdo_overlay/
 
 **Steps:**
 
-1. **Move legacy code**:
-   ```bash
-   mkdir -p src/legacy
-   mv frontend src/legacy/
-   ```
+1. **Consolidate debug/dev tools** (PowerShell):
+   ```powershell
+   New-Item -ItemType Directory -Force -Path tools
 
-2. **Consolidate debug/dev tools**:
-   ```bash
-   mkdir -p tools
-   mv analysis/* debug/* visualizations/* tools/
-   rmdir analysis debug visualizations
+   # Move files from analysis, debug, visualizations if they exist
+   if (Test-Path analysis) { Move-Item -Path analysis\* -Destination tools\ }
+   if (Test-Path debug) { Move-Item -Path debug\* -Destination tools\ }
+   if (Test-Path visualizations) { Move-Item -Path visualizations\* -Destination tools\ }
+
+   # Remove empty directories
+   Remove-Item -Path analysis,debug,visualizations -Force -ErrorAction SilentlyContinue
    ```
 
 3. **Create documentation**:
@@ -566,33 +580,33 @@ def test_cascade_matcher_speed(benchmark, matcher, screenshot):
 
 ## Running Tests
 
-### Command Patterns
+### Command Patterns (PowerShell/CMD)
 
-```bash
+```powershell
 # All tests
 pytest
 
 # Unit tests only (fast)
-pytest tests/unit
+pytest tests\unit
 
 # Integration tests
-pytest tests/integration
+pytest tests\integration
 
 # E2E tests
-pytest tests/e2e
+pytest tests\e2e
 
 # Performance tests
-pytest tests/performance
+pytest tests\performance
 
 # By marker
 pytest -m unit
 pytest -m "not slow"
 pytest -m integration
 
-# With coverage
-pytest --cov=src/rdo_overlay --cov-report=html
+# With coverage (HTML report)
+pytest --cov=src\rdo_overlay --cov-report=html
 
-# Parallel execution
+# Parallel execution (requires pytest-xdist)
 pytest -n auto
 
 # Verbose output
@@ -603,6 +617,60 @@ pytest -x
 
 # Re-run failed tests
 pytest --lf
+
+# Generate JUnit XML for CI
+pytest --junitxml=test-results.xml
+```
+
+### PowerShell Test Scripts
+
+Create `scripts/run_tests.ps1`:
+```powershell
+# Run test suite with appropriate flags
+param(
+    [string]$TestType = "all",
+    [switch]$Coverage,
+    [switch]$Parallel
+)
+
+$baseArgs = @("-v")
+
+switch ($TestType) {
+    "unit" { $baseArgs += "tests\unit" }
+    "integration" { $baseArgs += "tests\integration" }
+    "e2e" { $baseArgs += "tests\e2e" }
+    "performance" { $baseArgs += "tests\performance" }
+    "all" { $baseArgs += "tests" }
+}
+
+if ($Coverage) {
+    $baseArgs += "--cov=src\rdo_overlay"
+    $baseArgs += "--cov-report=html"
+    $baseArgs += "--cov-report=term"
+}
+
+if ($Parallel) {
+    $baseArgs += "-n"
+    $baseArgs += "auto"
+}
+
+Write-Host "Running tests with args: $baseArgs" -ForegroundColor Cyan
+pytest @baseArgs
+```
+
+Usage:
+```powershell
+# Run all tests
+.\scripts\run_tests.ps1
+
+# Run unit tests with coverage
+.\scripts\run_tests.ps1 -TestType unit -Coverage
+
+# Run all tests in parallel
+.\scripts\run_tests.ps1 -Parallel
+
+# Run integration tests with coverage and parallel
+.\scripts\run_tests.ps1 -TestType integration -Coverage -Parallel
 ```
 
 ### CI/CD Integration

@@ -132,9 +132,9 @@ Pipfile.lock
 # If you use pyenv / virtualenv wrapper
 .venv/
 
-# If you bundle frontend build in backend repo
-frontend/dist/
-frontend/node_modules/
+# Legacy - removed
+# frontend/dist/
+# frontend/node_modules/
 
 # Project
 cache/
