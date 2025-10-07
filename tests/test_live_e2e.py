@@ -39,6 +39,28 @@ from matching.cascade_scale_matcher import CascadeScaleMatcher, ScaleConfig
 from matching.simple_matcher import SimpleMatcher
 
 
+class GameCaptureHandler(WindowsCapture):
+    """Capture handler for single frame capture."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.latest_frame = None
+
+    def on_frame_arrived(self, frame: Frame, capture_control: InternalCaptureControl):
+        """Callback when new frame arrives."""
+        # Convert frame to numpy array (BGRA format)
+        frame_array = np.array(frame, dtype=np.uint8)
+        height, width = frame.height, frame.width
+        self.latest_frame = frame_array.reshape((height, width, 4))
+
+        # Stop capture immediately after first frame
+        capture_control.stop()
+
+    def on_closed(self):
+        """Called when capture is closed."""
+        pass
+
+
 class LiveE2ETest:
     """End-to-end test tool for live game screenshots."""
 
@@ -221,52 +243,34 @@ class LiveE2ETest:
     def capture_screenshot(self) -> Optional[np.ndarray]:
         """Capture current game screenshot using Windows Capture API."""
         try:
-            # Create capture instance
-            capture = WindowsCapture(
+            # Create capture instance using class-based approach
+            capture = GameCaptureHandler(
                 cursor_capture=None,
                 draw_border=None,
                 monitor_index=None,
                 window_name=self.rdr2_window_title
             )
 
-            # Store frame data
-            latest_frame = {'data': None}
-
-            # Register event handlers using decorator
-            @capture.event
-            def on_frame_arrived(frame: Frame, capture_control: InternalCaptureControl):
-                """Callback when new frame arrives."""
-                # Convert frame to numpy array (BGRA format)
-                frame_array = np.array(frame, dtype=np.uint8)
-                height, width = frame.height, frame.width
-                latest_frame['data'] = frame_array.reshape((height, width, 4))
-
-                # Stop capture immediately after first frame
-                capture_control.stop()
-
-            @capture.event
-            def on_closed():
-                """Called when capture is closed."""
-                pass
-
             # Start capture in background thread
             capture.start_free_threaded()
 
-            # Wait for first frame (up to 500ms)
-            max_wait = 0.5
+            # Wait for first frame (up to 2 seconds for initial capture)
+            max_wait = 2.0
             wait_interval = 0.01
             elapsed = 0
 
-            while latest_frame['data'] is None and elapsed < max_wait:
+            while capture.latest_frame is None and elapsed < max_wait:
                 time.sleep(wait_interval)
                 elapsed += wait_interval
 
-            if latest_frame['data'] is not None:
+            if capture.latest_frame is not None:
                 # Convert BGRA to BGR
-                img = cv2.cvtColor(latest_frame['data'], cv2.COLOR_BGRA2BGR)
+                img = cv2.cvtColor(capture.latest_frame, cv2.COLOR_BGRA2BGR)
                 return img
             else:
                 print(f"[ERROR] No frame captured after {max_wait}s")
+                print(f"[ERROR] Window title: {self.rdr2_window_title}")
+                print(f"[ERROR] Make sure the game window is visible and not minimized")
                 return None
 
         except Exception as e:
