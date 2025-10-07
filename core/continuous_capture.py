@@ -331,8 +331,9 @@ class ContinuousCaptureService(QObject):
         self.stats['confidences'].append(match_result['confidence'])
         self.stats['inliers'].append(match_result['inliers'])
 
-        # Track motion stats
-        if cascade_info.get('akaze_bypassed'):
+        # Track motion stats using match_type
+        match_type = match_result.get('match_type', 'akaze')
+        if match_type == 'motion_only':
             self.stats['motion_only_frames'] += 1
         else:
             self.stats['akaze_frames'] += 1
@@ -358,7 +359,7 @@ class ContinuousCaptureService(QObject):
 
         # === 6. UPDATE MONITORING ===
         motion_pred = cascade_info.get('motion_prediction')
-        akaze_used = not cascade_info.get('akaze_bypassed', False)
+        akaze_used = match_type != 'motion_only'  # Use match_type instead of akaze_bypassed
 
         self.viewport_monitor.update_drift_tracking(
             frame_number=self.stats['total_frames'],
@@ -385,7 +386,7 @@ class ContinuousCaptureService(QObject):
         total_time = (time.time() - frame_start) * 1000
         self.stats['total_times'].append(total_time)
 
-        frame_type = 'motion' if cascade_info.get('akaze_bypassed') else 'akaze'
+        frame_type = 'motion' if match_type == 'motion_only' else 'akaze'
         motion_offset = motion_pred.get('offset_px', (0, 0)) if motion_pred else (0, 0)
 
         self.performance_monitor.record_frame(

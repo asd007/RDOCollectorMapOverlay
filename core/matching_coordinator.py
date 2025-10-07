@@ -57,6 +57,9 @@ class MatchingCoordinator:
         self.motion_only_frames = 0
         self.akaze_frames = 0
 
+        # Detailed AKAZE cascade level tracking
+        self.akaze_cascade_levels = {}  # {level_name: count}
+
     def update_frame_interval(self, frame_interval: float):
         """
         Update frame interval for motion tracking.
@@ -125,12 +128,19 @@ class MatchingCoordinator:
         # Add timing to result
         result['match_time_ms'] = match_time_ms
 
-        # Track motion-only vs AKAZE frames
-        cascade_info = result.get('cascade_info', {})
-        if cascade_info.get('akaze_bypassed'):
+        # Track motion-only vs AKAZE frames using match_type
+        match_type = result.get('match_type', 'akaze')  # Default to 'akaze' if missing
+
+        if match_type == 'motion_only':
             self.motion_only_frames += 1
-        else:
+        else:  # 'akaze' or any other AKAZE-based type
             self.akaze_frames += 1
+
+            # Track which cascade level was used for AKAZE matches
+            cascade_info = result.get('cascade_info', {})
+            final_level = cascade_info.get('final_level')
+            if final_level:
+                self.akaze_cascade_levels[final_level] = self.akaze_cascade_levels.get(final_level, 0) + 1
 
         # Create viewport from result
         viewport = Viewport(
@@ -231,6 +241,8 @@ class MatchingCoordinator:
                 - motion_only_frames: Frames using pure motion tracking
                 - akaze_frames: Frames using AKAZE matching
                 - motion_only_ratio: Percentage of motion-only frames
+                - akaze_cascade_levels: Distribution of cascade levels used for AKAZE matches
+                  (e.g., {'Fast (25%)': 180, 'Medium (50%)': 70})
         """
         success_rate = (
             self.successful_matches / self.total_matches * 100
@@ -251,7 +263,8 @@ class MatchingCoordinator:
             'success_rate': success_rate,
             'motion_only_frames': self.motion_only_frames,
             'akaze_frames': self.akaze_frames,
-            'motion_only_ratio': motion_only_ratio
+            'motion_only_ratio': motion_only_ratio,
+            'akaze_cascade_levels': dict(self.akaze_cascade_levels)  # Copy dict for stats
         }
 
     def reset_tracker(self):

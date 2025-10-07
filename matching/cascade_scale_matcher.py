@@ -211,6 +211,7 @@ class CascadeScaleMatcher:
             # Return prediction-only result
             result = {
                 'success': True,
+                'match_type': 'motion_only',  # High-level categorization for stats
                 'map_x': map_x,
                 'map_y': map_y,
                 'map_w': predicted_w,
@@ -220,9 +221,9 @@ class CascadeScaleMatcher:
                 'method': 'motion_prediction_only',
                 'cascade_info': {
                     **cascade_info,
-                    'final_level': 'Motion-Only (0ms)',
+                    'match_type': 'motion_only',  # Also in cascade_info for consistency
+                    'final_level': 0.0,  # 0.0 = motion-only (no scale)
                     'levels_tried': [],
-                    'akaze_bypassed': True,
                     'bypass_reason': bypass_reason
                 }
             }
@@ -284,7 +285,9 @@ class CascadeScaleMatcher:
                 self.base_matcher.detector = self.base_matcher.create_scale_optimized_detector(level.scale)
 
             # Match (pass ROI and expansion if tracking)
-            result = self.base_matcher.match(screenshot_scaled, roi=roi, roi_expansion=roi_expansion)
+            # Nuclear option: 1.0 scale level should search entire map (no ROI restriction)
+            use_roi = roi if level.scale != 1.0 else None
+            result = self.base_matcher.match(screenshot_scaled, roi=use_roi, roi_expansion=roi_expansion)
 
             # Restore max features and detector
             self.base_matcher.max_screenshot_features = old_max
@@ -295,7 +298,6 @@ class CascadeScaleMatcher:
             # Record attempt
             level_info = {
                 'level': i,
-                'name': level.name,
                 'scale': level.scale,
                 'time_ms': level_time,
                 'success': result is not None and result.get('success', False)
@@ -319,10 +321,12 @@ class CascadeScaleMatcher:
                     # Quality sufficient, accept this result
                     level_info['accepted'] = True
                     cascade_info['levels_tried'].append(level_info)
-                    cascade_info['final_level'] = level.name
+                    cascade_info['final_level'] = level.scale
                     cascade_info['total_time_ms'] = (time.time() - total_start) * 1000
+                    cascade_info['match_type'] = 'akaze'  # Mark as AKAZE feature matching
 
-                    # Add cascade info to result
+                    # Add cascade info and match_type to result
+                    result['match_type'] = 'akaze'  # High-level categorization for stats
                     result['cascade_info'] = cascade_info
 
                     # Update tracking state for ROI filtering
@@ -342,7 +346,7 @@ class CascadeScaleMatcher:
                                   f"size=({map_w:.0f}x{map_h:.0f}), conf={self.last_confidence:.3f}")
 
                     if self.verbose:
-                        print(f"  Level {i+1}/{len(self.cascade_levels)} ({level.name}): "
+                        print(f"  Level {i+1}/{len(self.cascade_levels)} (scale={level.scale}): "
                               f"{level_time:.2f}ms, conf={result['confidence']:.3f}, "
                               f"inliers={result['inliers']} - ACCEPTED")
 
@@ -352,7 +356,7 @@ class CascadeScaleMatcher:
                     cascade_info['levels_tried'].append(level_info)
 
                     if self.verbose:
-                        print(f"  Level {i+1}/{len(self.cascade_levels)} ({level.name}): "
+                        print(f"  Level {i+1}/{len(self.cascade_levels)} (scale={level.scale}): "
                               f"{level_time:.2f}ms, conf={result['confidence']:.3f}, "
                               f"inliers={result['inliers']} - REJECTED (quality too low)")
             else:
@@ -395,22 +399,19 @@ class CascadeScaleMatcher:
                 scale=0.25,
                 max_features=75,
                 min_confidence=0.8,
-                min_inliers=10,
-                name="Fast (25%)"
+                min_inliers=10
             ),
             ScaleConfig(
                 scale=0.5,
                 max_features=150,
                 min_confidence=0.5,
-                min_inliers=8,
-                name="Reliable (50%)"
+                min_inliers=8
             ),
             ScaleConfig(
                 scale=1.0,
                 max_features=300,
-                min_confidence=0.0,  # Always accept (final fallback)
-                min_inliers=5,
-                name="Full Resolution (100%)"
+                min_confidence=0.6,  # Higher confidence for full res
+                min_inliers=5
             )
         ]
 
@@ -438,29 +439,25 @@ class CascadeScaleMatcher:
                 scale=0.125,
                 max_features=38,  # Proportional to 0.125 × 300
                 min_confidence=0.9,
-                min_inliers=10,
-                name="Ultra-fast (12.5%)"
+                min_inliers=10
             ),
             ScaleConfig(
                 scale=0.25,
                 max_features=75,
                 min_confidence=0.8,
-                min_inliers=10,
-                name="Fast (25%)"
+                min_inliers=10
             ),
             ScaleConfig(
                 scale=0.5,
                 max_features=150,
                 min_confidence=0.5,
-                min_inliers=8,
-                name="Reliable (50%)"
+                min_inliers=8
             ),
             ScaleConfig(
                 scale=1.0,
                 max_features=300,
-                min_confidence=0.0,  # Always accept (final fallback)
-                min_inliers=5,
-                name="Full Resolution (100%)"
+                min_confidence=0.6,  # Higher confidence for full res
+                min_inliers=5
             )
         ]
 
