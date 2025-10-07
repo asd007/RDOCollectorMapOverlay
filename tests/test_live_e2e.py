@@ -3,11 +3,10 @@
 E2E Live Screenshot Test Tool
 
 Interactive tool to test the current game screenshot in real-time.
-Captures the screen, runs through the full matching pipeline, and displays results.
+Captures ONE frame from the game window, runs through the full matching pipeline, and displays results.
 
 Usage:
-    python tests/test_live_e2e.py                    # Single capture and test
-    python tests/test_live_e2e.py --continuous       # Continuous testing
+    python tests/test_live_e2e.py                    # Single frame capture and test
     python tests/test_live_e2e.py --save-results     # Save screenshots and results
     python tests/test_live_e2e.py --visualize        # Draw collectibles on screenshot
     python tests/test_live_e2e.py --show             # Display annotated image in window
@@ -566,46 +565,14 @@ class LiveE2ETest:
             print(f"  Annotated:  {annotated_path}")
         print(f"  Results:    {result_path}")
 
-    def run_continuous(self, interval: float = 2.0):
-        """Run continuous E2E tests at specified interval."""
-        print(f"\nStarting continuous testing (interval: {interval}s)")
-        print("Press Ctrl+C to stop\n")
-
-        test_count = 0
-        success_count = 0
-
-        try:
-            while True:
-                test_count += 1
-                result = self.run_test()
-
-                if result['success']:
-                    success_count += 1
-
-                print(f"\nTests run: {test_count}, Success: {success_count}, "
-                      f"Success rate: {success_count/test_count*100:.1f}%")
-                print(f"\nWaiting {interval}s... (Ctrl+C to stop)")
-                time.sleep(interval)
-
-        except KeyboardInterrupt:
-            print("\n\nStopped by user")
-            print(f"\nFinal statistics:")
-            print(f"  Total tests:   {test_count}")
-            print(f"  Successful:    {success_count}")
-            print(f"  Failed:        {test_count - success_count}")
-            print(f"  Success rate:  {success_count/test_count*100:.1f}%")
-
-
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
-        description='E2E Live Screenshot Test Tool',
+        description='E2E Live Screenshot Test Tool - Captures ONE frame from RDR2 window',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python tests/test_live_e2e.py                    # Single test
-  python tests/test_live_e2e.py --continuous       # Continuous testing (2s interval)
-  python tests/test_live_e2e.py --continuous --interval 5  # 5s interval
+  python tests/test_live_e2e.py                    # Single frame test
   python tests/test_live_e2e.py --save-results     # Save screenshots and results
   python tests/test_live_e2e.py --visualize        # Generate annotated images
   python tests/test_live_e2e.py --show             # Display annotated image in window
@@ -614,10 +581,6 @@ Examples:
         """
     )
 
-    parser.add_argument('--continuous', action='store_true',
-                       help='Run continuous tests')
-    parser.add_argument('--interval', type=float, default=2.0,
-                       help='Interval between tests in continuous mode (default: 2.0s)')
     parser.add_argument('--save-results', action='store_true',
                        help='Save screenshots and results to tests/e2e_results/')
     parser.add_argument('--visualize', action='store_true',
@@ -637,12 +600,9 @@ Examples:
         show_window=args.show
     )
 
-    # Run test(s)
-    if args.continuous:
-        test_tool.run_continuous(interval=args.interval)
-    else:
-        result = test_tool.run_test()
-        sys.exit(0 if result['success'] else 1)
+    # Run single frame test
+    result = test_tool.run_test()
+    sys.exit(0 if result['success'] else 1)
 
 
 if __name__ == '__main__':
