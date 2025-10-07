@@ -51,13 +51,8 @@ class CollectibleRendererSceneGraph(QQuickItem):
         # Scene graph root node
         self.root_node = None
 
-        # Debug: Track geometry changes
-        self.geometryChanged.connect(self._on_geometry_changed)
+        # Debug
         print(f"[SceneGraph] Renderer initialized, size: {self.width()}x{self.height()}")
-
-    def _on_geometry_changed(self, new_geometry, old_geometry):
-        """Debug callback for geometry changes."""
-        print(f"[SceneGraph] Geometry changed: {old_geometry.width()}x{old_geometry.height()} -> {new_geometry.width()}x{new_geometry.height()}")
 
     def set_collectibles(self, collectibles: List[Dict]):
         """
@@ -123,6 +118,18 @@ class CollectibleRendererSceneGraph(QQuickItem):
         scale_x = 1920.0 / self._viewport_width
         scale_y = 1080.0 / self._viewport_height
 
+        # Debug: Log rendering details on first frame
+        if old_node is None:
+            print(f"[SceneGraph] First updatePaintNode call")
+            print(f"[SceneGraph] Viewport: x={self._viewport_x}, y={self._viewport_y}, w={self._viewport_width}, h={self._viewport_height}")
+            print(f"[SceneGraph] Transform scale: x={scale_x}, y={scale_y}")
+            print(f"[SceneGraph] Rendering {len(self._all_collectibles)} collectibles")
+            if len(self._all_collectibles) > 0:
+                print(f"[SceneGraph] First 3 collectibles:")
+                for i, col in enumerate(self._all_collectibles[:3]):
+                    print(f"  [{i}] map=({col.get('map_x')}, {col.get('map_y')}), type={col.get('type')}")
+
+        sprite_count = 0
         # Render all collectibles (no viewport culling - GPU handles offscreen efficiently)
         for collectible in self._all_collectibles:
             map_x = collectible.get('map_x', 0)
@@ -150,5 +157,14 @@ class CollectibleRendererSceneGraph(QQuickItem):
 
             # Add to scene (Qt handles ownership automatically)
             self.root_node.appendChildNode(sprite_node)
+            sprite_count += 1
+
+            # Debug: Log first 3 sprite positions
+            if old_node is None and sprite_count <= 3:
+                print(f"  Sprite {sprite_count}: screen=({screen_x:.1f}, {screen_y:.1f}), rect={sprite_rect}")
+
+        # Debug: Summary
+        if old_node is None:
+            print(f"[SceneGraph] Added {sprite_count} sprite nodes to scene graph")
 
         return self.root_node
