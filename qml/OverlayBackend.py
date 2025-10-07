@@ -15,6 +15,7 @@ from PySide6.QtCore import QObject, Signal, Property, Slot, QTimer, QUrl
 from PySide6.QtGui import QCursor
 from typing import List, Dict, Optional
 from core.collection_tracker import CollectionTracker
+from core.collectibles_filter import filter_visible_collectibles
 from qml.svg_icons import get_icon_svg
 
 
@@ -253,50 +254,26 @@ class OverlayBackend(QObject):
         # No per-frame collectible updates needed!
 
     def _update_visible_collectibles(self):
-        """Filter and transform collectibles to screen coordinates"""
+        """Filter and transform collectibles to screen coordinates using pure function"""
         if not self._viewport or not self._state:
             self._visible_collectibles = []
             self.collectiblesChanged.emit()
             return
 
         viewport = self._viewport
-        viewport_x = viewport['x']
-        viewport_y = viewport['y']
-        viewport_w = viewport['width']
-        viewport_h = viewport['height']
 
-        # Screen dimensions
-        screen_w = 1920
-        screen_h = 1080
-
-        # Transform scale
-        scale_x = screen_w / viewport_w
-        scale_y = screen_h / viewport_h
-
-        visible = []
-        for col in self._state.collectibles:
-            # Check if collectible is in viewport (detection space)
-            if (viewport_x <= col.x <= viewport_x + viewport_w and
-                viewport_y <= col.y <= viewport_y + viewport_h):
-
-                # Check if category is visible (from collection tracker)
-                if not self.tracker.is_visible(col.category):
-                    continue
-
-                # Transform to screen coordinates
-                screen_x = int((col.x - viewport_x) * scale_x)
-                screen_y = int((col.y - viewport_y) * scale_y)
-
-                visible.append({
-                    'x': screen_x,
-                    'y': screen_y,
-                    'type': col.type,
-                    'name': col.name,
-                    'category': col.category,
-                    'help': col.help if hasattr(col, 'help') else '',
-                    'video': col.video if hasattr(col, 'video') else '',
-                    'collected': self.tracker.is_collected(col.category, col.name)
-                })
+        # Use pure function for filtering and transformation
+        visible = filter_visible_collectibles(
+            all_collectibles=self._state.collectibles,
+            viewport_x=viewport['x'],
+            viewport_y=viewport['y'],
+            viewport_width=viewport['width'],
+            viewport_height=viewport['height'],
+            screen_width=1920,
+            screen_height=1080,
+            is_category_visible=self.tracker.is_visible,
+            is_collected=self.tracker.is_collected
+        )
 
         self._collectibles_update_count += 1
         # Force property change by creating a brand new list (QML reference comparison)
