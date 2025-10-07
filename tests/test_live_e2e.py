@@ -27,17 +27,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import cv2
 import numpy as np
-import mss
 import win32gui
-
-try:
-    from windows_capture import WindowsCapture, Frame, InternalCaptureControl
-    WINDOWS_CAPTURE_AVAILABLE = True
-except ImportError:
-    WINDOWS_CAPTURE_AVAILABLE = False
-    WindowsCapture = None
-    Frame = None
-    InternalCaptureControl = None
+from windows_capture import WindowsCapture, Frame, InternalCaptureControl
 
 from config import MAP_DIMENSIONS
 from config.paths import CachePaths
@@ -49,12 +40,10 @@ from matching.cascade_scale_matcher import CascadeScaleMatcher, ScaleConfig
 from matching.simple_matcher import SimpleMatcher
 
 
-class GameCaptureHandler(WindowsCapture) if WINDOWS_CAPTURE_AVAILABLE else object:
+class GameCaptureHandler(WindowsCapture):
     """Windows Capture handler for RDR2 game window."""
 
     def __init__(self, *args, **kwargs):
-        if not WINDOWS_CAPTURE_AVAILABLE:
-            raise RuntimeError("windows-capture library not available")
         super().__init__(*args, **kwargs)
         self.latest_frame = None
 
@@ -101,17 +90,12 @@ class LiveE2ETest:
         if save_results or visualize:
             self.output_dir.mkdir(exist_ok=True)
 
-        # Try to find and initialize RDR2 window capture
-        if WINDOWS_CAPTURE_AVAILABLE:
-            self.rdr2_window_title = self._find_rdr2_window()
-            if self.rdr2_window_title:
-                print(f"[Windows Capture] Found RDR2 window: {self.rdr2_window_title}")
-            else:
-                print("[Windows Capture] RDR2 window not found, will use full screen capture")
+        # Find RDR2 window
+        self.rdr2_window_title = self._find_rdr2_window()
+        if self.rdr2_window_title:
+            print(f"[Windows Capture] Found RDR2 window: {self.rdr2_window_title}")
         else:
-            print("[Windows Capture] Not available, using MSS full screen capture")
-            if save_results:
-                print(f"Results will be saved to: {self.output_dir}")
+            raise RuntimeError("RDR2 window not found! Make sure the game is running and the map is open.")
 
         print("Initializing E2E test tool...")
         self._initialize_matcher()
@@ -255,44 +239,28 @@ class LiveE2ETest:
             self.collectibles = []
 
     def capture_screenshot(self) -> Optional[np.ndarray]:
-        """Capture current game screenshot."""
-        # Try Windows Capture API first (captures RDR2 window only)
-        if WINDOWS_CAPTURE_AVAILABLE and self.rdr2_window_title:
-            try:
-                # Create capture instance
-                capture = GameCaptureHandler(
-                    cursor_capture=None,
-                    draw_border=None,
-                    monitor_index=None,
-                    window_name=self.rdr2_window_title
-                )
-
-                # Start capture briefly to get one frame
-                capture.start_free_threaded()
-                time.sleep(0.1)  # Wait for frame
-
-                if capture.latest_frame is not None:
-                    # Convert BGRA to BGR
-                    img = cv2.cvtColor(capture.latest_frame, cv2.COLOR_BGRA2BGR)
-                    return img
-                else:
-                    print("[Windows Capture] No frame captured, falling back to MSS")
-
-            except Exception as e:
-                print(f"[Windows Capture] Failed: {e}, falling back to MSS")
-
-        # Fallback to MSS (full screen capture)
+        """Capture current game screenshot using Windows Capture API."""
         try:
-            with mss.mss() as sct:
-                # Capture primary monitor
-                monitor = sct.monitors[1]
-                screenshot = sct.grab(monitor)
+            # Create capture instance
+            capture = GameCaptureHandler(
+                cursor_capture=None,
+                draw_border=None,
+                monitor_index=None,
+                window_name=self.rdr2_window_title
+            )
 
-                # Convert to numpy array (BGR format)
-                img = np.array(screenshot)
-                img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+            # Start capture briefly to get one frame
+            capture.start_free_threaded()
+            time.sleep(0.1)  # Wait for frame
 
+            if capture.latest_frame is not None:
+                # Convert BGRA to BGR
+                img = cv2.cvtColor(capture.latest_frame, cv2.COLOR_BGRA2BGR)
                 return img
+            else:
+                print("[ERROR] No frame captured from Windows Capture API")
+                return None
+
         except Exception as e:
             print(f"[ERROR] Screenshot capture failed: {e}")
             return None
