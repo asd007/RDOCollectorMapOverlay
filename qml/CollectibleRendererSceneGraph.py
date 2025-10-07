@@ -51,6 +51,14 @@ class CollectibleRendererSceneGraph(QQuickItem):
         # Scene graph root node
         self.root_node = None
 
+        # Debug: Track geometry changes
+        self.geometryChanged.connect(self._on_geometry_changed)
+        print(f"[SceneGraph] Renderer initialized, size: {self.width()}x{self.height()}")
+
+    def _on_geometry_changed(self, new_geometry, old_geometry):
+        """Debug callback for geometry changes."""
+        print(f"[SceneGraph] Geometry changed: {old_geometry.width()}x{old_geometry.height()} -> {new_geometry.width()}x{new_geometry.height()}")
+
     def set_collectibles(self, collectibles: List[Dict]):
         """
         Set all collectibles with map coordinates (detection space).
@@ -90,6 +98,7 @@ class CollectibleRendererSceneGraph(QQuickItem):
         """
         # Safety: Skip if item has zero size
         if self.width() == 0 or self.height() == 0:
+            print(f"[SceneGraph] updatePaintNode called but size is {self.width()}x{self.height()}, skipping")
             return old_node
 
         # Safety: Need valid window for texture creation
