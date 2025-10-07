@@ -296,8 +296,8 @@ class LiveE2ETest:
 
         # Draw each collectible
         for collectible in visible_collectibles:
-            x = int(collectible['screen_x'])
-            y = int(collectible['screen_y'])
+            x = int(collectible['x'])
+            y = int(collectible['y'])
             ctype = collectible.get('type', 'default')
             name = collectible.get('name', 'Unknown')
 
