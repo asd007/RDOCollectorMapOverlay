@@ -9,6 +9,7 @@ from typing import List, Optional, Dict
 from PySide6.QtCore import QObject, Signal, Property
 
 from models.collectible import Collectible
+from core.collection_tracker import CollectionTracker
 
 
 @dataclass
@@ -72,6 +73,7 @@ class ApplicationState(QObject):
         # Updated every frame from capture thread (write via signals, read on Qt thread)
 
         self._current_viewport: Optional[ViewportState] = None
+        self.collection_tracker: CollectionTracker = CollectionTracker()
 
         # === INITIALIZATION STATE ===
         self.is_initialized = False

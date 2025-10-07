@@ -49,8 +49,9 @@ class OverlayBackend(QObject):
         # Backend state (from app.py)
         self._state = overlay_state
 
-        # Collection tracker
-        self.tracker = CollectionTracker()
+        # Collection tracker (reference to ApplicationState's tracker)
+        # Note: For backwards compatibility, we keep self.tracker as a property
+        # but it delegates to state.collection_tracker
 
         # Canvas reference (set from QML)
         self._canvas = None
@@ -117,6 +118,11 @@ class OverlayBackend(QObject):
         self._fps_timer = QTimer(self)
         self._fps_timer.timeout.connect(self._update_fps)
         self._fps_timer.start(500)  # Update every 500ms
+
+    @property
+    def tracker(self):
+        """Get collection tracker from ApplicationState (backwards compatibility)."""
+        return self._state.collection_tracker if self._state else None
 
     def set_state(self, state):
         """Connect to OverlayState from app.py"""
