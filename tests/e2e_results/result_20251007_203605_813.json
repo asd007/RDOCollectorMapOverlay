@@ -1,0 +1,45 @@
+{
+  "success": true,
+  "timestamp": "2025-10-07T20:35:54.649037",
+  "timing": {
+    "capture_ms": 8.027315139770508,
+    "match_ms": 46.861886978149414,
+    "filter_ms": 0.0,
+    "total_ms": 54.88920211791992
+  },
+  "viewport": {
+    "map_x": 4217,
+    "map_y": 2403,
+    "map_width": 958,
+    "map_height": 539
+  },
+  "match_info": {
+    "confidence": 1.0,
+    "inliers": 32,
+    "match_type": "akaze",
+    "cascade_level": 0.25,
+    "roi_used": false,
+    "prediction_used": false,
+    "levels_tried": [
+      {
+        "level": 0,
+        "scale": 0.25,
+        "time_ms": 46.861886978149414,
+        "success": true,
+        "confidence": 1.0,
+        "inliers": 32,
+        "total_matches": 32,
+        "accepted": true
+      }
+    ]
+  },
+  "collectibles": {
+    "total": 4,
+    "by_type": {
+      "pentacles": 1,
+      "bottle": 1,
+      "flower": 1,
+      "fossils_random": 1
+    }
+  }
+}

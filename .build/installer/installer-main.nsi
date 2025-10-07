@@ -19,8 +19,8 @@ SetCompressorDictSize 64
 
 ; MUI Settings
 !define MUI_ABORTWARNING
-!define MUI_ICON "..\..\frontend\icon.ico"
-!define MUI_UNICON "..\..\frontend\icon.ico"
+!define MUI_ICON "..\..\icon.ico"
+!define MUI_UNICON "..\..\icon.ico"
 !define MUI_HEADERIMAGE
 !define MUI_HEADERIMAGE_BITMAP "..\..\build\installer\header.bmp"  ; 150x57 pixels
 !define MUI_WELCOMEFINISHPAGE_BITMAP "..\..\build\installer\wizard.bmp"  ; 164x314 pixels
@@ -83,22 +83,20 @@ Function DownloadPage
   ${NSD_CreateLabel} 0 0 100% 12u "The following components will be downloaded:"
   Pop $0
 
-  ${NSD_CreateLabel} 10 15 100% 10u "• Electron Runtime (${ELECTRON_SIZE_MB} MB)"
+  ${NSD_CreateLabel} 10 15 100% 10u "• Python Runtime (${PYTHON_SIZE_MB} MB)"
   Pop $0
-  ${NSD_CreateLabel} 10 27 100% 10u "• Node.js Runtime (${NODE_SIZE_MB} MB)"
+  ${NSD_CreateLabel} 10 27 100% 10u "• PySide6 + WebEngine (${PYSIDE6_WEBENGINE_SIZE_MB} MB)"
   Pop $0
-  ${NSD_CreateLabel} 10 39 100% 10u "• Python Runtime (${PYTHON_SIZE_MB} MB)"
+  ${NSD_CreateLabel} 10 39 100% 10u "• OpenCV + NumPy (${OPENCV_SIZE_MB} MB)"
   Pop $0
-  ${NSD_CreateLabel} 10 51 100% 10u "• NPM Dependencies (~15 MB)"
+  ${NSD_CreateLabel} 10 51 100% 10u "• Backend Packages (${BACKEND_PACKAGES_SIZE_MB} MB)"
   Pop $0
-  ${NSD_CreateLabel} 10 63 100% 10u "• Python Packages (~50 MB)"
-  Pop $0
-  ${NSD_CreateLabel} 10 75 100% 10u "• Map Data (${MAP_HQ_SIZE_MB} MB) - Required"
+  ${NSD_CreateLabel} 10 63 100% 10u "• Map Data (${MAP_HQ_SIZE_MB} MB) - Required"
   Pop $0
 
-  ${NSD_CreateLabel} 0 95 100% 12u "Total download size: ~372 MB"
+  ${NSD_CreateLabel} 0 85 100% 12u "Total download size: ~250 MB"
   Pop $0
-  ${NSD_CreateLabel} 0 110 100% 12u "Installation size: ~567 MB"
+  ${NSD_CreateLabel} 0 100 100% 12u "Installation size: ~380 MB"
   Pop $0
 
   ${NSD_CreateLabel} 0 130 100% 12u "Internet connection required. Downloads will begin after clicking Next."
@@ -176,11 +174,11 @@ Section "Core Components" SEC_CORE
   FileClose $9
 
   ; Check if this is first-time installation or update
-  IfFileExists "$CommonAppDataDir\RDO-Map-Overlay\runtime\electron\electron.exe" is_update is_first_time
+  IfFileExists "$CommonAppDataDir\RDO-Map-Overlay\runtime\python\python.exe" is_update is_first_time
   is_first_time:
     DetailPrint "First-time installation detected"
-    DetailPrint "This will download approximately 372MB (Runtimes + Map Data)"
-    DetailPrint "Installation will take 5-10 minutes"
+    DetailPrint "This will download approximately 250MB (Python + Qt/PySide6 + Map Data)"
+    DetailPrint "Installation will take 3-5 minutes"
     Goto check_done
   is_update:
     DetailPrint "Update installation detected"
@@ -195,135 +193,21 @@ Section "Core Components" SEC_CORE
 
   ; Create application directory structure (local to installation)
   CreateDirectory "$INSTDIR\app"
-  CreateDirectory "$INSTDIR\app\backend"
   CreateDirectory "$INSTDIR\data"
   CreateDirectory "$INSTDIR\data\cache"
 
-  ; Copy minimal application files (these are included in the installer)
+  ; Copy application files (bundled during build)
   SetOutPath "$INSTDIR\app"
-  File "..\..\frontend\package.json"
-  File "..\..\frontend\package-lock.json"
-  File "..\..\frontend\main.js"
-  File "..\..\frontend\renderer.js"
-  File "..\..\frontend\index.html"
-  File "..\..\frontend\first-launch-disclaimer.html"
-  File "..\..\frontend\component-downloader.js"
-  File "..\..\frontend\github-sha256-fetcher.js"
-  File "..\..\frontend\icon.ico"
-
-  ; Copy backend source files (bundled during build)
-  SetOutPath "$INSTDIR\app\backend"
-  File /r "..\..\build\installer\backend-source\*.*"
-
-  ; Download Electron (skip if already installed for updates)
-  IfFileExists "$CommonAppDataDir\RDO-Map-Overlay\runtime\electron\electron.exe" 0 download_electron
-    DetailPrint "Electron already installed, skipping download"
-    Push "Electron already installed - skipping download"
-    Call LogWrite
-    Goto electron_done
-
-  download_electron:
-  DetailPrint "Downloading Electron from: ${ELECTRON_URL}"
-  DetailPrint "Saving to: ${TEMP_DIR}\electron.zip"
-  Push "Electron Runtime"
-  Push "${ELECTRON_URL}"
-  Push "${TEMP_DIR}\electron.zip"
-  Call DownloadWithRetry
-
-  DetailPrint "Download complete. Checking file..."
-  IfFileExists "${TEMP_DIR}\electron.zip" +3
-    MessageBox MB_OK "ERROR: electron.zip was not downloaded!$\n$\nPath: ${TEMP_DIR}\electron.zip"
-    Abort
-
-  DetailPrint "File exists. Extracting Electron to: $CommonAppDataDir\RDO-Map-Overlay\runtime\electron"
-  CreateDirectory "$CommonAppDataDir\RDO-Map-Overlay\runtime\electron"
-
-  DetailPrint "Extracting with PowerShell..."
-  nsExec::ExecToLog 'powershell -Command "Expand-Archive -Path \"${TEMP_DIR}\electron.zip\" -DestinationPath \"$CommonAppDataDir\RDO-Map-Overlay\runtime\electron\" -Force"'
-  Pop $0
-  DetailPrint "PowerShell extraction returned: $0"
-
-  ${If} $0 != 0
-    MessageBox MB_OK "Failed to extract Electron!$\n$\nExit code: $0$\n$\nZip file: ${TEMP_DIR}\electron.zip$\n$\nDestination: $CommonAppDataDir\RDO-Map-Overlay\runtime\electron"
-    Abort
-  ${EndIf}
-
-  DetailPrint "Electron extraction successful"
-  Delete "${TEMP_DIR}\electron.zip"
-
-  electron_done:
-
-  ; Download Node.js (skip if already installed for updates)
-  IfFileExists "$CommonAppDataDir\RDO-Map-Overlay\runtime\node\node.exe" 0 download_nodejs
-    DetailPrint "Node.js already installed, skipping download"
-    Push "Node.js already installed - skipping download"
-    Call LogWrite
-    Goto nodejs_done
-
-  download_nodejs:
-  Push "Node.js Runtime"
-  Push "${NODE_URL}"
-  Push "${TEMP_DIR}\node.zip"
-  Call DownloadWithRetry
-
-  DetailPrint "Extracting Node.js..."
-  Push "Extracting Node.js to: $CommonAppDataDir\RDO-Map-Overlay\runtime"
-  Call LogWrite
-
-  nsExec::ExecToLog 'powershell -Command "Expand-Archive -Path \"${TEMP_DIR}\node.zip\" -DestinationPath \"$CommonAppDataDir\RDO-Map-Overlay\runtime\" -Force"'
-  Pop $0
-  ${If} $0 != 0
-    Push "ERROR: Failed to extract Node.js - exit code: $0"
-    Call LogWrite
-    MessageBox MB_OK "Failed to extract Node.js!$\n$\nExit code: $0"
-    Abort
-  ${EndIf}
-
-  ; Remove any existing node folder (from previous install or failed rename)
-  RMDir /r "$CommonAppDataDir\RDO-Map-Overlay\runtime\node"
-
-  ; Check if the extracted folder exists
-  IfFileExists "$CommonAppDataDir\RDO-Map-Overlay\runtime\node-v${NODE_VERSION}-win-x64" node_folder_exists
-    Push "ERROR: Expected Node folder not found after extraction: $CommonAppDataDir\RDO-Map-Overlay\runtime\node-v${NODE_VERSION}-win-x64"
-    Call LogWrite
-    MessageBox MB_OK "Node.js extraction failed!$\n$\nExpected folder not found: node-v${NODE_VERSION}-win-x64$\n$\nCheck install.log for details."
-    Abort
-  node_folder_exists:
-
-  ; Rename extracted node folder to generic "node" (for version independence)
-  Push "Renaming Node.js folder: node-v${NODE_VERSION}-win-x64 -> node"
-  Call LogWrite
-  Rename "$CommonAppDataDir\RDO-Map-Overlay\runtime\node-v${NODE_VERSION}-win-x64" "$CommonAppDataDir\RDO-Map-Overlay\runtime\node"
-
-  ; Verify rename succeeded
-  IfFileExists "$CommonAppDataDir\RDO-Map-Overlay\runtime\node" rename_success
-    Push "ERROR: Failed to rename Node.js folder"
-    Call LogWrite
-    MessageBox MB_OK "Failed to rename Node.js folder!$\n$\nSource: node-v${NODE_VERSION}-win-x64$\n$\nTarget: node"
-    Abort
-  rename_success:
-  Push "Node.js folder renamed successfully"
-  Call LogWrite
-
-  Delete "${TEMP_DIR}\node.zip"
-
-  ; Verify npm.cmd exists
-  Push "Checking for npm.cmd at: $CommonAppDataDir\RDO-Map-Overlay\runtime\node\npm.cmd"
-  Call LogWrite
-  IfFileExists "$CommonAppDataDir\RDO-Map-Overlay\runtime\node\npm.cmd" npm_cmd_found
-    Push "ERROR: npm.cmd not found after extraction!"
-    Call LogWrite
-
-    ; List what we actually have in runtime directory
-    nsExec::ExecToLog 'cmd /c dir "$CommonAppDataDir\RDO-Map-Overlay\runtime" /b /s | findstr /i npm'
-
-    MessageBox MB_OK "npm.cmd not found!$\n$\nExpected at: $CommonAppDataDir\RDO-Map-Overlay\runtime\node\npm.cmd$\n$\nPlease check the install.log for details."
-    Abort
-  npm_cmd_found:
-  Push "npm.cmd found successfully"
-  Call LogWrite
-
-  nodejs_done:
+  File "..\..\app.py"
+  File "..\..\app_qml.py"
+  File "..\..\overlay_qt_v2.py"
+  File "..\..\requirements.txt"
+  File /r /x __pycache__ "..\..\config"
+  File /r /x __pycache__ "..\..\core"
+  File /r /x __pycache__ "..\..\matching"
+  File /r /x __pycache__ "..\..\api"
+  File /r /x __pycache__ "..\..\models"
+  File /r /x __pycache__ "..\..\qml"
 
   ; Download Python embeddable (skip if already installed for updates)
   IfFileExists "$CommonAppDataDir\RDO-Map-Overlay\runtime\python\python.exe" 0 download_python
@@ -392,201 +276,6 @@ Section "Core Components" SEC_CORE
 
   pip_done:
 
-  ; Install Node.js dependencies
-  DetailPrint "Installing Node.js dependencies..."
-  DetailPrint "Working directory: $INSTDIR\app"
-  DetailPrint "npm.cmd location: $CommonAppDataDir\RDO-Map-Overlay\runtime\node\npm.cmd"
-
-  SetOutPath "$INSTDIR\app"
-
-  ; Check if npm.cmd exists
-  IfFileExists "$CommonAppDataDir\RDO-Map-Overlay\runtime\node\npm.cmd" npm_exists
-    MessageBox MB_OK "ERROR: npm.cmd not found!$\n$\nExpected at: $CommonAppDataDir\RDO-Map-Overlay\runtime\node\npm.cmd$\n$\nCheck Node.js extraction."
-    Abort
-  npm_exists:
-
-  ; Install node_modules to shared location, then create junction
-  ; Skip if node_modules already exists and package.json hasn't changed
-  DetailPrint "Checking if npm install is needed..."
-
-  ; Check if node_modules already exists in shared location
-  StrCpy $2 "0"  ; Default: need to install
-  IfFileExists "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules\node_modules" 0 need_npm_install
-    ; Check if package.json has changed by comparing file sizes and dates
-    IfFileExists "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules\package.json" 0 need_npm_install
-      DetailPrint "node_modules exists, checking if package.json changed..."
-
-      ; Use fc (file compare) to check if package.json changed
-      nsExec::Exec 'fc /b "$INSTDIR\app\package.json" "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules\package.json"'
-      Pop $1
-      ${If} $1 == 0
-        ; Files are identical - skip npm install
-        DetailPrint "package.json unchanged, skipping npm install"
-        Push "npm install skipped - node_modules already up-to-date"
-        Call LogWrite
-        StrCpy $2 "1"  ; Skip npm install
-        Goto npm_install_done
-      ${EndIf}
-  need_npm_install:
-
-  ${If} $2 == "0"
-    ; Need to install - remove old junction first
-    DetailPrint "Installing dependencies to shared location..."
-    Push "Installing to ProgramData (shared across updates)"
-    Call LogWrite
-
-    ; Remove old node_modules junction if it exists
-    IfFileExists "$INSTDIR\app\node_modules" 0 no_old_modules
-      DetailPrint "Removing old node_modules junction..."
-      nsExec::Exec 'fsutil reparsepoint query "$INSTDIR\app\node_modules"'
-      Pop $1
-      ${If} $1 == 0
-        RMDir "$INSTDIR\app\node_modules"
-      ${Else}
-        RMDir /r "$INSTDIR\app\node_modules"
-      ${EndIf}
-    no_old_modules:
-
-    ; Copy package.json to prefix directory
-    DetailPrint "Preparing shared modules directory..."
-    CreateDirectory "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules"
-    CopyFiles "$INSTDIR\app\package.json" "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules\package.json"
-
-    ; Copy package-lock.json if it exists
-    IfFileExists "$INSTDIR\app\package-lock.json" 0 no_lock_file
-      CopyFiles "$INSTDIR\app\package-lock.json" "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules\package-lock.json"
-    no_lock_file:
-
-    ; Run npm install
-    DetailPrint "Running npm install..."
-    Push "Running npm install"
-    Call LogWrite
-
-    SetOutPath "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules"
-    nsExec::ExecToLog '"$CommonAppDataDir\RDO-Map-Overlay\runtime\node\npm.cmd" install --production --no-fund --no-audit'
-    Pop $0
-    DetailPrint "npm install exit code: $0"
-    Push "npm install exit code: $0"
-    Call LogWrite
-
-    ${If} $0 != 0
-      Push "ERROR: npm install failed with exit code $0"
-      Call LogWrite
-      MessageBox MB_YESNO "npm install returned error code $0.$\n$\nContinue anyway? (Application may not work correctly)" IDYES npm_continue
-      Abort
-    npm_continue:
-    ${EndIf}
-
-    DetailPrint "npm install completed"
-    Push "npm install completed successfully"
-    Call LogWrite
-  ${EndIf}
-
-  npm_install_done:
-
-  ; Create junction to shared node_modules (if not already present)
-  DetailPrint "Setting up junction to shared node_modules..."
-
-  IfFileExists "$INSTDIR\app\node_modules" 0 create_junction
-    ; Junction might already exist - verify it points to correct location
-    nsExec::Exec 'fsutil reparsepoint query "$INSTDIR\app\node_modules"'
-    Pop $1
-    ${If} $1 == 0
-      DetailPrint "Junction already exists and is valid"
-      Push "Junction already exists: app\node_modules -> app-modules\node_modules"
-      Call LogWrite
-      Goto junction_done
-    ${Else}
-      ; Not a junction, remove it
-      DetailPrint "Removing old node_modules directory..."
-      RMDir /r "$INSTDIR\app\node_modules"
-    ${EndIf}
-
-  create_junction:
-  DetailPrint "Creating junction to shared node_modules..."
-  Push "Creating junction: app\node_modules -> app-modules\node_modules"
-  Call LogWrite
-
-  nsExec::ExecToLog 'cmd /c mklink /J "$INSTDIR\app\node_modules" "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules\node_modules"'
-  Pop $0
-
-  ${If} $0 == 0
-    ; Verify junction creation with fsutil
-    nsExec::Exec 'fsutil reparsepoint query "$INSTDIR\app\node_modules"'
-    Pop $1
-    ${If} $1 == 0
-      DetailPrint "Junction created and verified successfully"
-      Push "Junction verified: app\node_modules -> app-modules\node_modules"
-      Call LogWrite
-    ${Else}
-      DetailPrint "ERROR: Junction creation failed verification"
-      Push "ERROR: fsutil verification failed"
-      Call LogWrite
-      MessageBox MB_OK "ERROR: Junction verification failed.$\n$\nThe application may not work correctly."
-    ${EndIf}
-  ${Else}
-    DetailPrint "ERROR: mklink failed with exit code $0"
-    Push "ERROR: Junction creation failed (exit code $0)"
-    Call LogWrite
-    MessageBox MB_YESNO "Junction creation failed.$\n$\nContinue anyway? (Application may not work correctly)" IDYES junction_continue
-    Abort
-  junction_continue:
-  ${EndIf}
-
-  junction_done:
-
-  ; Install @electron/rebuild and rebuild native modules (skip if already done)
-  DetailPrint "Checking if native modules need rebuilding..."
-
-  ; Check if rebuild marker exists and npm install was skipped
-  ${If} $2 == "1"
-    IfFileExists "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules\.rebuild-done" 0 need_rebuild
-      DetailPrint "Native modules already rebuilt, skipping"
-      Push "electron-rebuild skipped - already completed"
-      Call LogWrite
-      Goto rebuild_done
-  ${EndIf}
-
-  need_rebuild:
-  DetailPrint "Installing @electron/rebuild..."
-  Push "Installing @electron/rebuild"
-  Call LogWrite
-
-  nsExec::ExecToLog '"$CommonAppDataDir\RDO-Map-Overlay\runtime\node\npm.cmd" install --save-dev @electron/rebuild electron@27.0.0'
-  Pop $0
-
-  ${If} $0 == 0
-    DetailPrint "Rebuilding native modules with @electron/rebuild..."
-    Push "Running electron-rebuild"
-    Call LogWrite
-
-    ; Use the installed electron-rebuild (in shared location)
-    ; module-dir points to shared location where package.json and node_modules are
-    nsExec::ExecToLog '"$CommonAppDataDir\RDO-Map-Overlay\runtime\node\node.exe" "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules\node_modules\@electron\rebuild\lib\cli.js" --force --module-dir="$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules"'
-    Pop $0
-
-    ${If} $0 == 0
-      DetailPrint "Native modules rebuilt successfully"
-      Push "electron-rebuild completed successfully"
-      Call LogWrite
-
-      ; Create marker file to skip rebuild on next install
-      FileOpen $1 "$CommonAppDataDir\RDO-Map-Overlay\runtime\app-modules\.rebuild-done" w
-      FileWrite $1 "Rebuild completed successfully$\r$\n"
-      FileClose $1
-    ${Else}
-      DetailPrint "Warning: electron-rebuild returned code $0"
-      Push "Warning: electron-rebuild exited with code $0"
-      Call LogWrite
-    ${EndIf}
-  ${Else}
-    DetailPrint "Warning: Failed to install @electron/rebuild (code $0)"
-    Push "Warning: Could not install @electron/rebuild"
-    Call LogWrite
-  ${EndIf}
-
-  rebuild_done:
-
   ; Install Python packages (skip if already installed and requirements.txt unchanged)
   DetailPrint "Checking if Python packages need installation..."
 
@@ -597,8 +286,8 @@ Section "Core Components" SEC_CORE
   python_exists:
 
   ; Check if requirements.txt exists
-  IfFileExists "$INSTDIR\app\backend\requirements.txt" requirements_exists
-    MessageBox MB_OK "ERROR: requirements.txt not found!$\n$\nExpected at: $INSTDIR\app\backend\requirements.txt"
+  IfFileExists "$INSTDIR\app\requirements.txt" requirements_exists
+    MessageBox MB_OK "ERROR: requirements.txt not found!$\n$\nExpected at: $INSTDIR\app\requirements.txt"
     Abort
   requirements_exists:
 
@@ -608,7 +297,7 @@ Section "Core Components" SEC_CORE
     DetailPrint "Checking if requirements.txt changed..."
 
     ; Compare requirements.txt files
-    nsExec::Exec 'fc /b "$INSTDIR\app\backend\requirements.txt" "$CommonAppDataDir\RDO-Map-Overlay\runtime\python\.requirements.txt"'
+    nsExec::Exec 'fc /b "$INSTDIR\app\requirements.txt" "$CommonAppDataDir\RDO-Map-Overlay\runtime\python\.requirements.txt"'
     Pop $1
     ${If} $1 == 0
       ; Files are identical - skip pip install
@@ -625,7 +314,7 @@ Section "Core Components" SEC_CORE
     Push "Running pip install"
     Call LogWrite
 
-    nsExec::ExecToLog '"$CommonAppDataDir\RDO-Map-Overlay\runtime\python\python.exe" -m pip install --no-warn-script-location -r "$INSTDIR\app\backend\requirements.txt"'
+    nsExec::ExecToLog '"$CommonAppDataDir\RDO-Map-Overlay\runtime\python\python.exe" -m pip install --no-warn-script-location -r "$INSTDIR\app\requirements.txt"'
     Pop $0
     DetailPrint "pip install exit code: $0"
     Push "pip install exit code: $0"
@@ -644,21 +333,22 @@ Section "Core Components" SEC_CORE
     Call LogWrite
 
     ; Save copy of requirements.txt to detect changes on next install
-    CopyFiles "$INSTDIR\app\backend\requirements.txt" "$CommonAppDataDir\RDO-Map-Overlay\runtime\python\.requirements.txt"
+    CopyFiles "$INSTDIR\app\requirements.txt" "$CommonAppDataDir\RDO-Map-Overlay\runtime\python\.requirements.txt"
   ${EndIf}
 
   pip_install_done:
 
-  ; Create launcher batch file (simplified - Electron spawns backend)
+  ; Create launcher batch file (launches Qt/QML overlay)
   FileOpen $1 "$INSTDIR\launcher.bat" w
   FileWrite $1 "@echo off$\r$\n"
-  FileWrite $1 "cd /d $\"%~dp0$\"$\r$\n"
+  FileWrite $1 "cd /d $\"%~dp0app$\"$\r$\n"
   FileWrite $1 "$\r$\n"
-  FileWrite $1 "REM Electron runtime path in ProgramData$\r$\n"
-  FileWrite $1 "set ELECTRON_PATH=%PROGRAMDATA%\RDO-Map-Overlay\runtime\electron\electron.exe$\r$\n"
+  FileWrite $1 "REM Python runtime path in ProgramData$\r$\n"
+  FileWrite $1 "set PYTHON_PATH=%PROGRAMDATA%\RDO-Map-Overlay\runtime\python\python.exe$\r$\n"
+  FileWrite $1 "set PYTHONPATH=%~dp0app$\r$\n"
   FileWrite $1 "$\r$\n"
-  FileWrite $1 "REM Launch Electron (which will spawn Python backend as child process)$\r$\n"
-  FileWrite $1 "$\"%ELECTRON_PATH%$\" $\"%~dp0app$\"$\r$\n"
+  FileWrite $1 "REM Launch Qt/QML overlay application$\r$\n"
+  FileWrite $1 "$\"%PYTHON_PATH%$\" app_qml.py$\r$\n"
   FileClose $1
 
   ; Clean up temp directory
@@ -667,11 +357,11 @@ Section "Core Components" SEC_CORE
   ; Create shortcuts
   CreateDirectory "$SMPROGRAMS\${START_MENU_DIR}"
   CreateShortCut "$SMPROGRAMS\${START_MENU_DIR}\${PRODUCT_NAME}.lnk" \
-    "$INSTDIR\launcher.bat" "" "$INSTDIR\app\icon.ico" 0 SW_SHOWMINIMIZED
+    "$INSTDIR\launcher.bat" "" "" 0 SW_SHOWMINIMIZED
   CreateShortCut "$SMPROGRAMS\${START_MENU_DIR}\Uninstall.lnk" \
     "$INSTDIR\Uninstall.exe"
   CreateShortCut "$DESKTOP\${PRODUCT_NAME}.lnk" \
-    "$INSTDIR\launcher.bat" "" "$INSTDIR\app\icon.ico" 0 SW_SHOWMINIMIZED
+    "$INSTDIR\launcher.bat" "" "" 0 SW_SHOWMINIMIZED
 
   ; Write uninstaller
   WriteUninstaller "$INSTDIR\Uninstall.exe"
@@ -680,7 +370,6 @@ Section "Core Components" SEC_CORE
   WriteRegStr HKLM "Software\${PRODUCT_NAME_SAFE}" "" "$INSTDIR"
   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "DisplayName" "${PRODUCT_NAME}"
   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "UninstallString" "$INSTDIR\Uninstall.exe"
-  WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "DisplayIcon" "$INSTDIR\app\icon.ico"
   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "DisplayVersion" "${PRODUCT_VERSION}"
   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "Publisher" "${PRODUCT_PUBLISHER}"
   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "URLInfoAbout" "${PRODUCT_WEB_SITE}"
@@ -740,10 +429,10 @@ Function un.KeepDataPage
   nsDialogs::Create 1018
   Pop $0
 
-  ${NSD_CreateLabel} 0 0 100% 36u "Shared components are stored in ProgramData and can be reused by future installations.$\r$\n$\r$\nThis includes runtimes (Electron, Node.js, Python) and map data (total ~372 MB).$\r$\nWould you like to keep these for future installations?"
+  ${NSD_CreateLabel} 0 0 100% 36u "Shared components are stored in ProgramData and can be reused by future installations.$\r$\n$\r$\nThis includes Python runtime, Qt/PySide6 packages, and map data (total ~250 MB).$\r$\nWould you like to keep these for future installations?"
   Pop $0
 
-  ${NSD_CreateCheckbox} 10 50 100% 12u "Keep shared runtimes and map data (saves ~372 MB on reinstall)"
+  ${NSD_CreateCheckbox} 10 50 100% 12u "Keep shared runtimes and map data (saves ~250 MB on reinstall)"
   Pop $KeepSharedData
   ${NSD_Check} $KeepSharedData  ; Check by default
 
@@ -753,22 +442,15 @@ FunctionEnd
 ; Uninstaller
 Section "Uninstall"
   ; Kill any running processes
-  nsExec::Exec 'taskkill /F /IM electron.exe'
   nsExec::Exec 'taskkill /F /IM python.exe'
+  nsExec::Exec 'taskkill /F /IM pythonw.exe'
 
   ; Remove local application files
   Delete "$INSTDIR\launcher.bat"
   Delete "$INSTDIR\Uninstall.exe"
   Delete "$INSTDIR\install.log"
 
-  ; CRITICAL: Remove node_modules junction BEFORE deleting app directory
-  ; RMDir without /r only removes the junction itself, not the target
-  IfFileExists "$INSTDIR\app\node_modules" 0 no_junction_to_remove
-    DetailPrint "Removing node_modules junction..."
-    RMDir "$INSTDIR\app\node_modules"
-  no_junction_to_remove:
-
-  ; Use Windows native rmdir for fast deletion (deletes entire folders instantly)
+  ; Use Windows native rmdir for fast deletion
   DetailPrint "Removing application files..."
   nsExec::Exec 'cmd /c rmdir /s /q "$INSTDIR\app"'
   nsExec::Exec 'cmd /c rmdir /s /q "$INSTDIR\data"'
@@ -781,8 +463,7 @@ Section "Uninstall"
   ${If} $0 == ${BST_CHECKED}
     ; Keep shared runtimes and map data
     DetailPrint "Keeping shared components at: $CommonAppDataDir\RDO-Map-Overlay\"
-    DetailPrint "  - Runtimes (Python, Electron, Node): ~205 MB"
-    DetailPrint "  - Node.js dependencies: ~200 MB"
+    DetailPrint "  - Python runtime and Qt/PySide6 packages: ~83 MB"
     DetailPrint "  - Map data: ~167 MB"
   ${Else}
     ; Remove all shared components from ProgramData (fast deletion)

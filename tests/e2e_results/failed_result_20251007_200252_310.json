@@ -1,0 +1,51 @@
+{
+  "success": false,
+  "error": "All cascade levels failed quality thresholds",
+  "capture_time_ms": 83.81390571594238,
+  "match_time_ms": 406.1906337738037,
+  "cascade_info": {
+    "levels_tried": [
+      {
+        "level": 0,
+        "scale": 0.25,
+        "time_ms": 24.607181549072266,
+        "success": false,
+        "confidence": 0.0,
+        "inliers": 0,
+        "total_matches": 0,
+        "error": "No features detected in screenshot",
+        "accepted": false
+      },
+      {
+        "level": 1,
+        "scale": 0.5,
+        "time_ms": 70.28675079345703,
+        "success": false,
+        "confidence": 0.0,
+        "inliers": 0,
+        "total_matches": 0,
+        "error": "Not enough good matches (0 < 5)",
+        "accepted": false
+      },
+      {
+        "level": 2,
+        "scale": 1.0,
+        "time_ms": 309.7803592681885,
+        "success": false,
+        "confidence": 0.0,
+        "inliers": 0,
+        "total_matches": 0,
+        "error": "Not enough good matches (1 < 5)",
+        "accepted": false
+      }
+    ],
+    "final_level": null,
+    "total_time_ms": 404.6742916107178,
+    "skipped_levels": 0,
+    "prediction_used": false,
+    "prediction_ms": 0,
+    "roi_used": false,
+    "motion_prediction": null
+  },
+  "timestamp": "2025-10-07T20:02:52.310587"
+}

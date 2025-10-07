@@ -32,7 +32,10 @@ const includes = [
   'core/',
   'matching/',
   'models/',
-  'app.py',
+  'qml/',  // QML UI components
+  'app.py',  // Flask backend (still needed)
+  'app_qml.py',  // New QML frontend entry point
+  'overlay_qt_v2.py',  // Qt overlay module
   'requirements.txt'
 ];
 
@@ -58,11 +61,11 @@ includes.forEach(item => {
   }
 });
 
-// Create a launcher script
+// Create a launcher script for QML app
 const launcherScript = `#!/usr/bin/env python3
 """
-Backend Launcher
-Starts the Flask backend server
+RDO Map Overlay Launcher
+Starts the Qt/QML overlay application
 """
 import sys
 import os
@@ -70,11 +73,12 @@ import os
 # Add current directory to path
 sys.path.insert(0, os.path.dirname(__file__))
 
-# Import and run app
-from app import main
+# Import and run QML app
+import app_qml
 
 if __name__ == '__main__':
-    main()
+    # Run the QML application
+    app_qml.main() if hasattr(app_qml, 'main') else exec(open('app_qml.py').read())
 `;
 
 fs.writeFileSync(path.join(BACKEND_SOURCE_DIR, 'run.py'), launcherScript);

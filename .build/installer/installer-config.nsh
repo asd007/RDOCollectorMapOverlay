@@ -15,18 +15,15 @@
 !define PRODUCT_UNINST_ROOT_KEY "HKLM"
 
 ; Download URLs - Using specific versions for reproducibility
-!define ELECTRON_VERSION "27.0.0"
-!define ELECTRON_URL "https://github.com/electron/electron/releases/download/v${ELECTRON_VERSION}/electron-v${ELECTRON_VERSION}-win32-x64.zip"
-!define ELECTRON_SIZE_MB "95"  ; Approximate size for progress display
-
-!define NODE_VERSION "20.10.0"
-!define NODE_URL "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-win-x64.zip"
-!define NODE_SIZE_MB "30"
-
 !define PYTHON_VERSION "3.11.8"
 !define PYTHON_URL "https://www.python.org/ftp/python/${PYTHON_VERSION}/python-${PYTHON_VERSION}-embed-amd64.zip"
 !define GET_PIP_URL "https://bootstrap.pypa.io/get-pip.py"
 !define PYTHON_SIZE_MB "15"
+
+; Python package sizes (approximate)
+!define PYSIDE6_WEBENGINE_SIZE_MB "208"  ; PySide6 + PySide6-WebEngine + dependencies
+!define OPENCV_SIZE_MB "50"    ; OpenCV + NumPy
+!define BACKEND_PACKAGES_SIZE_MB "10"  ; Flask, requests, windows-capture, etc
 
 ; Map data (required, downloaded during installation)
 !define MAP_HQ_URL "https://media.githubusercontent.com/media/asd007/RDOCollectorMapOverlay/refs/heads/main/data/rdr2_map_hq.png"

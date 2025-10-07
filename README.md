@@ -293,12 +293,11 @@ rdo_overlay/
 │   ├── routes.py                   # HTTP + WebSocket endpoints
 │   └── state.py                    # Overlay state management
 │
-├── frontend/                       # Electron overlay
-│   ├── main.js                     # Electron main process
-│   ├── renderer.js                 # IPC + API client
-│   ├── map.js                      # Canvas rendering logic
-│   ├── index.html                  # Overlay UI
-│   └── package.json                # Frontend dependencies + build config
+├── qml/                            # Qt/QML overlay
+│   ├── Overlay.qml                 # Main overlay window
+│   ├── CollectibleCanvas.py        # Fast QPainter rendering
+│   ├── OverlayBackend.py           # Python/QML bridge
+│   └── CollectionTracker.qml       # Left sidebar tracker
 │
 ├── tests/                          # Test suite
 │   ├── test_matching.py            # Synthetic tests (15 test cases)
@@ -321,9 +320,9 @@ rdo_overlay/
 
 **Prerequisites:**
 - Python 3.10+
-- Node.js 18+
 - Git LFS (for map file)
 - Windows 10/11 (for Windows Graphics Capture API)
+- Qt 6 (installed via pip with PySide6)
 
 **Clone and Install:**
 
@@ -338,37 +337,26 @@ git lfs pull
 
 # Install Python dependencies
 pip install -r requirements.txt
-
-# Install frontend dependencies
-cd frontend
-npm install
-cd ..
 ```
 
 ### Local Development
 
-**Run Backend (Terminal 1):**
+**Run Qt/QML Overlay:**
 ```shell
-python app.py
+python app_qml.py
 ```
 
-**Run Frontend (Terminal 2):**
-```shell
-cd frontend
-npm run dev  # Development mode with DevTools
-```
-
-The backend will start on `http://127.0.0.1:5000` and the frontend will connect automatically.
+The integrated application starts the backend API on `http://127.0.0.1:5000` and displays the Qt/QML overlay window.
 
 ### Local Debugging
 
-**Backend Debugging:**
+**Application Debugging:**
 
-The backend outputs logs to stdout. To see detailed logs:
+The application outputs logs to stdout. To see detailed logs:
 
 ```shell
-# Run with debug logging
-python app.py
+# Run Qt/QML application
+python app_qml.py
 
 # You'll see logs like:
 # [2025-10-04 12:34:56] INFO: Server starting on port 5000
@@ -377,13 +365,13 @@ python app.py
 # [2025-10-04 12:35:00] DEBUG: Matching took 156ms
 ```
 
-**Frontend Debugging:**
+**Qt/QML Debugging:**
 
-Development mode automatically opens DevTools:
+Set QML debugging environment variables:
 
 ```shell
-cd frontend
-npm run dev  # DevTools opens automatically
+set QT_LOGGING_RULES="qt.qml*=true"
+python app_qml.py
 ```
 
 In DevTools Console, you'll see:
@@ -504,20 +492,18 @@ Tests run automatically on GitHub Actions for every pull request.
 
 ### Building a Release
 
-**Full Build:**
-```shell
-node .build/build-release.js
+**Build NSIS Installer:**
+```powershell
+cd .build\installer
+.\build-web-installer.ps1
 ```
 
-This will:
-1. Build backend with PyInstaller → `build/backend/rdo-overlay-backend.exe`
-2. Build frontend with electron-builder → `build/frontend/RDO-Map-Overlay-Setup.exe`
-
-**Test Backend Bundle:**
-```shell
-node .build/build-backend.js
-build/backend/rdo-overlay-backend.exe  # Should start server
-```
+This creates a minimal web installer (~1-2MB) that downloads dependencies during installation:
+- Electron Runtime (optional, legacy)
+- Node.js Runtime (optional, legacy)
+- Python Embeddable
+- Python packages (OpenCV, Flask, PySide6, etc.)
+- Map data
 
 ### Versioning with GitVersion
 
@@ -574,9 +560,8 @@ powershell -ExecutionPolicy Bypass -File build-web-installer.ps1
 The `.github/workflows/build-installer.yml` workflow:
 1. Checks out code with full git history
 2. Runs GitVersion to calculate version
-3. Updates `frontend/package.json` with calculated version
-4. Builds installer with version in filename and title
-5. Creates GitHub release when merged to `main`
+3. Builds installer with version in filename and title
+4. Creates GitHub release when merged to `main`
 
 **Manual Versioning:**
 If you need to set a specific version, create a git tag:
@@ -585,43 +570,6 @@ git tag v2.0.0
 git push --tags
 # Next build will use 2.0.0
 ```
-
-### Code Signing (Optional)
-
-**Current Status:** Builds are unsigned (`"sign": null` in package.json)
-
-**To enable code signing for production releases:**
-
-1. **Purchase Certificate:**
-   - Standard Code Signing: ~$100-400/year
-   - EV (Extended Validation): ~$300-600/year (recommended - no SmartScreen warnings)
-   - Providers: Sectigo, DigiCert, GlobalSign
-
-2. **Configure in `frontend/package.json`:**
-   ```json
-   "win": {
-     "certificateFile": "./cert.pfx",
-     "certificatePassword": "process.env.CERTIFICATE_PASSWORD",
-     "sign": null  // Remove this line
-   }
-   ```
-
-3. **Set environment variable:**
-   ```shell
-   set CERTIFICATE_PASSWORD=your_password
-   node .build/build-release.js
-   ```
-
-4. **For CI/CD (GitHub Actions):**
-   - Store certificate in GitHub Secrets
-   - Store password in GitHub Secrets
-   - Decode base64 certificate in workflow
-   - Set CERTIFICATE_PASSWORD env var
-
-**Without code signing:**
-- Installer works perfectly but shows "Unknown Publisher"
-- Windows SmartScreen may warn users (they can click "Run anyway")
-- Common for indie/open source projects
 
 ### Coding Standards
 
