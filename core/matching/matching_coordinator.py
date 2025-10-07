@@ -160,42 +160,26 @@ class MatchingCoordinator:
 
     def get_predicted_viewport(self, current_viewport: Viewport) -> Dict:
         """
-        Predict future viewport position for smoother rendering.
+        Return current viewport without forward prediction.
 
-        Uses motion extrapolation based on measured render lag.
+        Frontend now handles prediction via mouse-based extrapolation.
+        Backend should report actual AKAZE-matched position only.
 
         Args:
             current_viewport: Current matched viewport
 
         Returns:
-            Dict with predicted viewport:
-                - x, y: Predicted position
+            Dict with current viewport (no forward extrapolation):
+                - x, y: Current position from AKAZE
                 - width, height: Viewport size
-                - is_predicted: True if prediction was applied
-                - prediction_ms: Lag used for prediction
+                - is_predicted: Always False (no backend prediction)
+                - prediction_ms: Always 0
         """
-        try:
-            prediction = self.tracker.predict()
+        # DISABLED: Backend prediction conflicts with frontend mouse prediction
+        # Frontend now handles all forward extrapolation via mouse tracking
+        # Backend reports actual matched position only
 
-            if prediction:
-                pred_vp = prediction['predicted_viewport']
-                # Convert center + size to x,y + size
-                predicted_x = pred_vp['cx'] - pred_vp['width'] / 2
-                predicted_y = pred_vp['cy'] - pred_vp['height'] / 2
-
-                return {
-                    'x': predicted_x,
-                    'y': predicted_y,
-                    'width': pred_vp['width'],
-                    'height': pred_vp['height'],
-                    'is_predicted': True,
-                    'prediction_ms': self.measured_render_lag_ms
-                }
-
-        except Exception as e:
-            print(f"[MatchingCoordinator] Prediction error: {e}")
-
-        # Fallback to current viewport
+        # Return current viewport as-is (no forward extrapolation)
         return {
             'x': current_viewport.x,
             'y': current_viewport.y,

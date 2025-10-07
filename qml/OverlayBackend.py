@@ -107,6 +107,17 @@ class OverlayBackend(QObject):
         # Panning detection (for prediction weighting)
         self._is_panning: bool = False  # True when left mouse button is down
 
+        # Mouse-based viewport prediction (for smooth panning)
+        self._predicted_viewport_offset_x: float = 0.0  # Screen pixels
+        self._predicted_viewport_offset_y: float = 0.0
+        self._last_backend_viewport_x: float = 0.0  # Last backend viewport
+        self._last_backend_viewport_y: float = 0.0
+
+        # Mouse velocity tracking (for filtering backend updates during panning)
+        self._mouse_velocity_x: float = 0.0  # Detection space units per second
+        self._mouse_velocity_y: float = 0.0
+        self._last_mouse_update_time: float = 0.0
+
         # Rendering stats
         self._render_fps: float = 0.0
 
@@ -216,11 +227,120 @@ class OverlayBackend(QObject):
         if self._viewport_update_count == 1:
             print(f"[Backend] First viewport update: x={viewport['x']}, y={viewport['y']}, w={viewport['width']}, h={viewport['height']}")
 
-        # Update viewport transform in renderer
+        # Apply mouse-based prediction offset for smooth panning
+        # Convert screen pixel offset to detection space offset
+        scale_x = 1920.0 / viewport['width']
+        scale_y = 1080.0 / viewport['height']
+
+        predicted_x = viewport['x'] + (self._predicted_viewport_offset_x / scale_x)
+        predicted_y = viewport['y'] + (self._predicted_viewport_offset_y / scale_y)
+
+        # Smart prediction: use phase-based motion direction to decide when to use backend
+        if self._is_panning:
+            # During panning: filter out backend updates that just echo mouse movement
+            # Calculate backend velocity (detection space per second)
+            backend_delta_x = viewport['x'] - self._last_backend_viewport_x
+            backend_delta_y = viewport['y'] - self._last_backend_viewport_y
+            backend_velocity_x = backend_delta_x / (current_time - self._last_viewport_update) if self._last_viewport_update > 0 else 0
+            backend_velocity_y = backend_delta_y / (current_time - self._last_viewport_update) if self._last_viewport_update > 0 else 0
+
+            # Convert mouse velocity from screen pixels/sec to detection space/sec
+            mouse_velocity_det_x = self._mouse_velocity_x / scale_x
+            mouse_velocity_det_y = self._mouse_velocity_y / scale_y
+
+            # Calculate velocity difference
+            vel_diff_x = abs(backend_velocity_x - mouse_velocity_det_x)
+            vel_diff_y = abs(backend_velocity_y - mouse_velocity_det_y)
+
+            # Check if backend is just tracking mouse (similar direction and speed)
+            # Threshold: within 20% of mouse velocity magnitude
+            mouse_speed = (mouse_velocity_det_x**2 + mouse_velocity_det_y**2)**0.5
+            backend_speed = (backend_velocity_x**2 + backend_velocity_y**2)**0.5
+            speed_diff = abs(backend_speed - mouse_speed)
+
+            # If backend matches mouse movement, skip it (use pure mouse prediction)
+            if mouse_speed > 10 and speed_diff < (mouse_speed * 0.3):  # Within 30% speed
+                # Also check direction alignment (dot product)
+                if mouse_speed > 0 and backend_speed > 0:
+                    dot = (backend_velocity_x * mouse_velocity_det_x + backend_velocity_y * mouse_velocity_det_y)
+                    normalized_dot = dot / (mouse_speed * backend_speed)
+
+                    if normalized_dot > 0.8:  # Same direction (80% aligned)
+                        # Backend is just echoing mouse - ignore it, keep pure mouse prediction
+                        renderer_x = predicted_x
+                        renderer_y = predicted_y
+                    else:
+                        # Backend moved differently - use it (unexpected motion)
+                        renderer_x = viewport['x']
+                        renderer_y = viewport['y']
+                        self._predicted_viewport_offset_x = 0.0
+                        self._predicted_viewport_offset_y = 0.0
+                else:
+                    # Use mouse prediction
+                    renderer_x = predicted_x
+                    renderer_y = predicted_y
+            else:
+                # Backend velocity very different from mouse - use backend (unexpected motion)
+                # This catches cases where backend has better info (e.g. collision, edge of map)
+                if speed_diff > (mouse_speed * 0.5):  # Very different speed
+                    renderer_x = viewport['x']
+                    renderer_y = viewport['y']
+                    self._predicted_viewport_offset_x = 0.0
+                    self._predicted_viewport_offset_y = 0.0
+                else:
+                    # Still mostly matching - use prediction
+                    renderer_x = predicted_x
+                    renderer_y = predicted_y
+        else:
+            # After panning: check if backend is catching up or stable
+            # Calculate offset from backend to mouse prediction
+            offset_x = predicted_x - viewport['x']
+            offset_y = predicted_y - viewport['y']
+            offset_magnitude = (offset_x**2 + offset_y**2)**0.5
+
+            if offset_magnitude < 5:
+                # Very close - snap to backend immediately (within 5 pixels detection space)
+                renderer_x = viewport['x']
+                renderer_y = viewport['y']
+                self._predicted_viewport_offset_x = 0.0
+                self._predicted_viewport_offset_y = 0.0
+            elif offset_magnitude > 200:
+                # Way too far - mouse prediction was wrong, reset to backend
+                renderer_x = viewport['x']
+                renderer_y = viewport['y']
+                self._predicted_viewport_offset_x = 0.0
+                self._predicted_viewport_offset_y = 0.0
+            else:
+                # Check if backend is moving towards prediction (catching up)
+                # Compare current backend to last backend
+                backend_delta_x = viewport['x'] - self._last_backend_viewport_x
+                backend_delta_y = viewport['y'] - self._last_backend_viewport_y
+
+                # Dot product: positive if backend moving towards prediction
+                # If offset is (10, 5) and backend delta is (2, 1), dot = 20+5 = 25 (same direction)
+                dot_product = (offset_x * backend_delta_x) + (offset_y * backend_delta_y)
+
+                if dot_product > 0:
+                    # Backend moving towards prediction - skip this update, keep prediction
+                    # Backend is catching up, don't blend yet
+                    renderer_x = predicted_x
+                    renderer_y = predicted_y
+                else:
+                    # Backend stable or moving away - snap to backend now
+                    renderer_x = viewport['x']
+                    renderer_y = viewport['y']
+                    self._predicted_viewport_offset_x = 0.0
+                    self._predicted_viewport_offset_y = 0.0
+
+        # Track backend position for next frame's direction calculation
+        self._last_backend_viewport_x = viewport['x']
+        self._last_backend_viewport_y = viewport['y']
+
+        # Update viewport transform in renderer (with prediction applied)
         if self.gl_renderer:
             self.gl_renderer.set_viewport(
-                viewport['x'],
-                viewport['y'],
+                renderer_x,
+                renderer_y,
                 viewport['width'],
                 viewport['height']
             )
@@ -359,9 +479,49 @@ class OverlayBackend(QObject):
         was_panning = self._is_panning
         self._is_panning = left_down
 
+        # Reset prediction offset when panning stops
+        if was_panning and not self._is_panning:
+            self._predicted_viewport_offset_x = 0.0
+            self._predicted_viewport_offset_y = 0.0
+            self._mouse_velocity_x = 0.0
+            self._mouse_velocity_y = 0.0
+            self._last_mouse_update_time = 0.0
+
         # Emit signal if panning state changed
         if was_panning != self._is_panning:
             self.isPanningChanged.emit()
+
+    @Slot(float, float)
+    def update_mouse_pan_delta(self, dx: float, dy: float):
+        """
+        Update viewport prediction based on mouse movement during panning.
+
+        Called from QML cursor polling when panning detected.
+        Mouse delta is in screen pixels, we accumulate it for viewport offset.
+
+        Args:
+            dx: Mouse movement in screen pixels (X axis)
+            dy: Mouse movement in screen pixels (Y axis)
+        """
+        if not self._is_panning:
+            return
+
+        import time
+        current_time = time.perf_counter()
+        dt = current_time - self._last_mouse_update_time if self._last_mouse_update_time > 0 else 0.033
+
+        # Accumulate mouse delta (negative because map moves opposite to mouse)
+        # Game panning: mouse moves right → map moves left (negative X offset)
+        self._predicted_viewport_offset_x -= dx
+        self._predicted_viewport_offset_y -= dy
+
+        # Calculate mouse velocity in screen pixels/sec
+        # Will be converted to detection space in viewport update
+        if dt > 0:
+            self._mouse_velocity_x = -dx / dt  # Negative for viewport direction
+            self._mouse_velocity_y = -dy / dt
+
+        self._last_mouse_update_time = current_time
 
     # Hotkey actions
 

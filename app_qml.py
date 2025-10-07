@@ -28,6 +28,7 @@ from PySide6.QtQml import QQmlApplicationEngine, qmlRegisterType
 
 # Import custom QML types
 from qml.CollectibleRendererSceneGraph import CollectibleRendererSceneGraph
+from qml.CollectibleRendererPainted import CollectibleRendererPainted
 from qml.OverlayBackend import OverlayBackend
 from qml.ClickThroughManagerFixed import ClickThroughManager, GlobalHotkeyManager
 
@@ -345,6 +346,7 @@ def main():
 
     # Register custom QML types
     qmlRegisterType(CollectibleRendererSceneGraph, "RDOOverlay", 1, 0, "CollectibleRendererSceneGraph")
+    qmlRegisterType(CollectibleRendererPainted, "RDOOverlay", 1, 0, "CollectibleRendererPainted")
 
     # Create QML engine
     engine = QQmlApplicationEngine()
@@ -416,11 +418,11 @@ def main():
         # Call QML function to update interactive regions
         root_window.updateInteractiveRegions()
 
-        # Get reference to SceneGraph renderer (GPU-accelerated) and store in backend
-        scenegraph_renderer = root_window.findChild(CollectibleRendererSceneGraph, "spritesSceneGraph")
-        if scenegraph_renderer:
-            backend.gl_renderer = scenegraph_renderer
-            print("[Main] SceneGraph renderer connected (GPU-accelerated)")
+        # Get reference to Painted renderer (GPU-accelerated QPainter) and store in backend
+        painted_renderer = root_window.findChild(CollectibleRendererPainted, "spritesSceneGraph")
+        if painted_renderer:
+            backend.gl_renderer = painted_renderer
+            print("[Main] QPainter renderer connected (GPU-accelerated)")
             backend._rebuild_collectibles_cache()
 
             # Start continuous capture AFTER renderer is fully initialized
@@ -428,7 +430,7 @@ def main():
                 state.capture_service.start()
                 print(f"[Main] Continuous capture started ({state.capture_service.target_fps} fps)")
         else:
-            print("[ERROR] Could not find SceneGraph renderer with objectName 'spritesSceneGraph'")
+            print("[ERROR] Could not find Painted renderer with objectName 'spritesSceneGraph'")
             print("[ERROR] Application cannot continue without renderer")
             app.exit(1)
             return

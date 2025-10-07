@@ -2,22 +2,22 @@ import QtQuick 2.15
 import RDOOverlay 1.0
 
 /*
- * SceneGraph Collectible Sprites Renderer
+ * QPainter Collectible Sprites Renderer
  *
- * Hardware-accelerated GPU rendering using Qt Quick Scene Graph.
- * Python backend (CollectibleRendererSceneGraph.py) handles all rendering logic.
+ * Hardware-accelerated GPU rendering using QQuickPaintedItem + QPainter.
+ * Python backend (CollectibleRendererPainted.py) handles all rendering logic.
  *
- * Advantages over QPainter:
- * - GPU-accelerated (OpenGL/Vulkan/Metal)
- * - Batched rendering (single draw call per texture)
- * - Scales to thousands of sprites at 60+ FPS
+ * Advantages:
+ * - GPU-accelerated (QPainter content cached to texture)
+ * - Works with transparent windows (proven)
+ * - Can render hundreds of sprites at 60 FPS
  */
 
-CollectibleRendererSceneGraph {
+CollectibleRendererPainted {
     id: root
     objectName: "spritesSceneGraph"  // Required for findChild() in app_qml.py
 
-    // Explicit fullscreen size (anchors weren't working - item stayed 0x0)
+    // Explicit fullscreen size
     width: 1920
     height: 1080
     x: 0
@@ -26,18 +26,16 @@ CollectibleRendererSceneGraph {
     // Always behind other UI elements
     z: 0
 
-    // Backend updates collectibles data, frontend renders at its own rate
-    // This decouples backend matching from frontend rendering
-
-    // Continuous render timer - runs at 60 FPS independent of backend
+    // Backend updates viewport at variable rate, frontend renders at 30 FPS
+    // Dirty tracking skips painting when viewport unchanged (major performance boost)
     Timer {
-        interval: 16  // 60 FPS
+        interval: 33  // 30 FPS (good balance of smoothness vs performance)
         running: true
         repeat: true
-        onTriggered: root.update()  // Request Scene Graph rebuild
+        onTriggered: root.update()  // Request QPainter repaint
     }
 
     Component.onCompleted: {
-        console.log("[CollectibleSpritesSceneGraph] GPU renderer ready with 60 FPS timer, size:", width, "x", height)
+        console.log("[CollectibleRendererPainted] QPainter renderer ready (30 FPS rendering), size:", width, "x", height)
     }
 }

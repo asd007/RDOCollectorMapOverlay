@@ -362,18 +362,67 @@ Window {
         }
     }
 
-    // Cursor polling timer for tooltip hover detection
+    // High-speed mouse tracking for smooth viewport prediction during panning
+    Timer {
+        id: mousePanTracker
+        interval: 8  // 120 FPS for responsive panning
+        running: backend.isPanning
+        repeat: true
+
+        property real lastMouseX: -1
+        property real lastMouseY: -1
+
+        onTriggered: {
+            var cursorPos = backend.get_cursor_pos()
+            if (!cursorPos) return
+
+            if (lastMouseX >= 0 && lastMouseY >= 0) {
+                // Calculate mouse delta
+                var dx = cursorPos.x - lastMouseX
+                var dy = cursorPos.y - lastMouseY
+
+                // Update backend viewport prediction
+                backend.update_mouse_pan_delta(dx, dy)
+            }
+
+            // Update last position for next delta calculation
+            lastMouseX = cursorPos.x
+            lastMouseY = cursorPos.y
+        }
+
+        // Reset tracking when timer starts/stops
+        onRunningChanged: {
+            if (!running) {
+                lastMouseX = -1
+                lastMouseY = -1
+            }
+        }
+    }
+
+    // Cursor polling timer for tooltip hover detection (disabled during panning)
     Timer {
         id: cursorPollTimer
-        interval: 16  // ~60 FPS
+        interval: 33  // 30 FPS (low frequency for tooltips)
         running: backend.overlayVisible
         repeat: true
 
         property var currentHovered: null
 
         onTriggered: {
+            // OPTIMIZATION: Skip all hitbox testing during panning
+            // Mouse tracking handled by separate high-speed timer
+            if (backend.isPanning) {
+                if (currentHovered) {
+                    currentHovered = null
+                    collectibleTooltip.hide()  // Hide immediately during pan
+                }
+                return
+            }
+
             var cursorPos = backend.get_cursor_pos()
             if (!cursorPos) return
+
+            // Hitbox testing for tooltips (only when not panning)
 
             // Check if cursor is over UI elements (skip collectible hover if so)
             var overTooltip = collectibleTooltip.visible &&
@@ -393,7 +442,7 @@ Window {
                 return
             }
 
-            // Hit-test collectibles at cursor position
+            // Hit-test collectibles at cursor position (only viewport-visible items)
             var hoveredItem = findCollectibleAt(cursorPos.x, cursorPos.y)
 
             if (hoveredItem !== currentHovered) {
