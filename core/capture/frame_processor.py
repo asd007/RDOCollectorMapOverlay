@@ -104,7 +104,7 @@ class FrameProcessor:
         Returns:
             True if map is visible
         """
-        from core.map_detector import is_map_visible
+        from core.matching.map_detector import is_map_visible
         return is_map_visible(screenshot)
 
     def cache_result(self, result: dict):

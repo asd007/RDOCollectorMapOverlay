@@ -268,7 +268,7 @@ class CascadeScaleMatcher:
             # Optimized: Resize in grayscale BEFORE preprocessing
             # screenshot_preprocessed is actually RAW screenshot (not preprocessed yet)
             # This function does: grayscale  ->  resize  ->  posterize+CLAHE+LUT
-            from core.image_preprocessing import preprocess_with_resize
+            from core.matching.image_preprocessing import preprocess_with_resize
 
             screenshot_scaled = preprocess_with_resize(
                 screenshot_preprocessed,  # Raw screenshot

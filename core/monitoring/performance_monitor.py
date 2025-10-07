@@ -3,7 +3,7 @@ Performance monitoring and metrics aggregation.
 Thread ownership: Capture background thread.
 """
 
-from core.metrics import MetricsTracker
+from core.monitoring.metrics import MetricsTracker
 from typing import Dict
 
 

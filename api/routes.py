@@ -3,7 +3,7 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from config import SERVER
-from core.application_state import ApplicationState
+from core.state.application_state import ApplicationState
 
 
 def create_app(state: ApplicationState):

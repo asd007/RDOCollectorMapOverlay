@@ -6,7 +6,7 @@ import pytest
 import time
 import numpy as np
 from unittest.mock import Mock
-from core.viewport_monitor import ViewportMonitor
+from core.monitoring.viewport_monitor import ViewportMonitor
 from matching.viewport_tracker import Viewport
 
 
@@ -209,7 +209,7 @@ class TestViewportMonitorPanTracking:
         motion1 = {'offset_px': (60, 80), 'phase_confidence': 0.9}  # 100 pixels (sqrt(60^2 + 80^2))
 
         # Mock time from the beginning for deterministic test
-        import core.viewport_monitor
+        import core.monitoring.viewport_monitor
         original_time = time.time
         current_time = [1000.0]  # Mutable for incrementing
 
@@ -241,7 +241,7 @@ class TestViewportMonitorPanTracking:
         motion2 = {'offset_px': (20, 0), 'phase_confidence': 0.9}
 
         # Use controlled timing
-        import core.viewport_monitor
+        import core.monitoring.viewport_monitor
         original_time = time.time
         current_time = [1000.0]
 
@@ -293,7 +293,7 @@ class TestViewportMonitorPanTracking:
         """Test that pan history respects maxlen."""
         monitor = ViewportMonitor(history_size=10)
 
-        import core.viewport_monitor
+        import core.monitoring.viewport_monitor
         original_time = time.time
         current_time = [1000.0]
         time.time = lambda: current_time[0]
@@ -405,7 +405,7 @@ class TestViewportMonitorStatistics:
         """Test pan stats calculation."""
         monitor = ViewportMonitor()
 
-        import core.viewport_monitor
+        import core.monitoring.viewport_monitor
         original_time = time.time
         current_time = [1000.0]
         time.time = lambda: current_time[0]
@@ -437,7 +437,7 @@ class TestViewportMonitorStatistics:
         """Test pan stats percentile calculations."""
         monitor = ViewportMonitor()
 
-        import core.viewport_monitor
+        import core.monitoring.viewport_monitor
         original_time = time.time
         current_time = [1000.0]
         time.time = lambda: current_time[0]

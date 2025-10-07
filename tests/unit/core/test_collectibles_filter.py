@@ -3,7 +3,7 @@ Unit tests for collectibles_filter pure function.
 """
 
 import pytest
-from core.collectibles_filter import filter_visible_collectibles
+from core.collectibles.collectibles_filter import filter_visible_collectibles
 from tests.conftest import MockCollectible
 
 

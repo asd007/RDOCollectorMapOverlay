@@ -12,7 +12,7 @@ import numpy as np
 from matching.cascade_scale_matcher import CascadeScaleMatcher, ScaleConfig
 from matching.simple_matcher import SimpleMatcher
 from config.paths import CachePaths
-from core.image_preprocessing import preprocess_with_resize
+from core.matching.image_preprocessing import preprocess_with_resize
 
 
 def test_cascade_with_motion_prediction():

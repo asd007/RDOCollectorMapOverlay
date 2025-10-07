@@ -68,7 +68,7 @@ class CycleManager:
         self.total_checks += 1
 
         try:
-            from core.collectibles_loader import CollectiblesLoader
+            from core.collectibles.collectibles_loader import CollectiblesLoader
 
             # Check if daily cycle changed
             cycle_changed = CollectiblesLoader.check_cycle_changed()

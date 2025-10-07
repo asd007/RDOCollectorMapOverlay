@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 from typing import Optional
 from config import CACHE_PATHS
-from core.image_preprocessing import preprocess_for_matching
+from core.matching.image_preprocessing import preprocess_for_matching
 
 
 class MapLoader:

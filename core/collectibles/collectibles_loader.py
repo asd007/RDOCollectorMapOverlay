@@ -4,7 +4,7 @@ import requests
 from datetime import datetime, timezone
 from typing import List
 from models import Collectible
-from core.coordinate_transform import CoordinateTransform
+from core.map.coordinate_transform import CoordinateTransform
 from config import COLLECTIBLES, EXTERNAL_URLS
 
 

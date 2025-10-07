@@ -13,9 +13,9 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from config import SERVER, MAP_DIMENSIONS
 from core import CoordinateTransform, CollectiblesLoader
-from core.continuous_capture import ContinuousCaptureService
-from core.click_observer import ClickObserver
-from core.application_state import ApplicationState
+from core.capture.continuous_capture import ContinuousCaptureService
+from core.interactions.click_observer import ClickObserver
+from core.state.application_state import ApplicationState
 from matching.cascade_scale_matcher import CascadeScaleMatcher, ScaleConfig
 from matching import SimpleMatcher
 import cv2
@@ -74,7 +74,7 @@ def initialize_system(app=None):
         # Load map and features (with caching for fast startup)
         print("Loading map...")
         from config.paths import CachePaths
-        from core.feature_cache import FeatureCache
+        from core.map.feature_cache import FeatureCache
 
         hq_source = CachePaths.find_hq_map_source()
         if not hq_source or not hq_source.exists():
@@ -106,7 +106,7 @@ def initialize_system(app=None):
             h, w = hq_map.shape[:2]
             print(f"HQ map loaded: {w}x{h}")
 
-            from core.image_preprocessing import preprocess_with_resize
+            from core.matching.image_preprocessing import preprocess_with_resize
             detection_map = preprocess_with_resize(hq_map, scale=MAP_DIMENSIONS.DETECTION_SCALE)
             print(f"Detection map: {detection_map.shape[1]}x{detection_map.shape[0]}")
 

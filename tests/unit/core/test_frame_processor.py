@@ -6,7 +6,7 @@ import pytest
 import numpy as np
 import hashlib
 from unittest.mock import Mock, patch
-from core.frame_processor import FrameProcessor
+from core.capture.frame_processor import FrameProcessor
 
 
 class TestFrameProcessorInitialization:
@@ -259,7 +259,7 @@ class TestFrameProcessorMapDetection:
         assert error is None
         assert processor.map_not_visible_frames == 0
 
-    @patch('core.map_detector.is_map_visible')
+    @patch('core.matching.map_detector.is_map_visible')
     def test_map_detection_enabled(self, mock_is_map_visible, mock_screenshot):
         """Test map detection when enabled."""
         mock_is_map_visible.return_value = False
@@ -275,7 +275,7 @@ class TestFrameProcessorMapDetection:
         assert error == "Map not visible"
         assert processor.map_not_visible_frames == 1
 
-    @patch('core.map_detector.is_map_visible')
+    @patch('core.matching.map_detector.is_map_visible')
     def test_map_detection_success(self, mock_is_map_visible, mock_screenshot):
         """Test successful map detection."""
         mock_is_map_visible.return_value = True

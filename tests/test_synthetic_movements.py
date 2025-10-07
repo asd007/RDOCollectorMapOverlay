@@ -29,7 +29,7 @@ from config import MAP_DIMENSIONS
 from core import MapLoader, CoordinateTransform
 from matching.cascade_scale_matcher import CascadeScaleMatcher, ScaleConfig
 from matching import SimpleMatcher
-from core.image_preprocessing import preprocess_with_resize
+from core.matching.image_preprocessing import preprocess_with_resize
 
 
 @dataclass

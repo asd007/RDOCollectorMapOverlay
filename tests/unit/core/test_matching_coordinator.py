@@ -8,7 +8,7 @@ import time
 from unittest.mock import Mock, patch, MagicMock
 from concurrent.futures import TimeoutError as FuturesTimeoutError
 
-from core.matching_coordinator import MatchingCoordinator
+from core.matching.matching_coordinator import MatchingCoordinator
 from matching.viewport_tracker import Viewport
 
 
@@ -309,7 +309,7 @@ class TestMatchingCoordinatorPrediction:
         assert predicted['is_predicted'] is False
         assert predicted['prediction_ms'] == 0
 
-    @patch('core.matching_coordinator.ViewportKalmanTracker')
+    @patch('core.matching.matching_coordinator.ViewportKalmanTracker')
     def test_get_predicted_viewport_with_motion(self, mock_tracker_class):
         """Test prediction with motion data."""
         matcher = Mock()
@@ -338,7 +338,7 @@ class TestMatchingCoordinatorPrediction:
         assert predicted['y'] == 4000.0
         assert predicted['is_predicted'] is True
 
-    @patch('core.matching_coordinator.ViewportKalmanTracker')
+    @patch('core.matching.matching_coordinator.ViewportKalmanTracker')
     def test_get_predicted_viewport_with_exception(self, mock_tracker_class):
         """Test prediction fallback on exception."""
         matcher = Mock()
@@ -425,7 +425,7 @@ class TestMatchingCoordinatorStatistics:
         # May be None or empty dict
         assert stats is None or not stats.get('has_motion_data')
 
-    @patch('core.matching_coordinator.ViewportKalmanTracker')
+    @patch('core.matching.matching_coordinator.ViewportKalmanTracker')
     def test_get_motion_stats_with_data(self, mock_tracker_class):
         """Test motion stats with prediction data."""
         matcher = Mock()

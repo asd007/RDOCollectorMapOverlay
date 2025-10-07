@@ -16,12 +16,12 @@ from collections import deque
 from PySide6.QtCore import QObject, Signal
 
 from matching.viewport_tracker import Viewport
-from core.capture_loop import CaptureLoop
-from core.frame_processor import FrameProcessor
-from core.matching_coordinator import MatchingCoordinator
-from core.viewport_monitor import ViewportMonitor
-from core.cycle_manager import CycleManager
-from core.performance_monitor import PerformanceMonitor
+from core.capture.capture_loop import CaptureLoop
+from core.capture.frame_processor import FrameProcessor
+from core.matching.matching_coordinator import MatchingCoordinator
+from core.monitoring.viewport_monitor import ViewportMonitor
+from core.collectibles.cycle_manager import CycleManager
+from core.monitoring.performance_monitor import PerformanceMonitor
 
 
 # Legacy classes kept for backward compatibility

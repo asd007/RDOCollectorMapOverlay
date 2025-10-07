@@ -14,8 +14,8 @@ import re
 from PySide6.QtCore import QObject, Signal, Property, Slot, QTimer, QUrl
 from PySide6.QtGui import QCursor
 from typing import List, Dict, Optional
-from core.collection_tracker import CollectionTracker
-from core.collectibles_filter import filter_visible_collectibles
+from core.collectibles.collection_tracker import CollectionTracker
+from core.collectibles.collectibles_filter import filter_visible_collectibles
 from qml.svg_icons import get_icon_svg
 
 

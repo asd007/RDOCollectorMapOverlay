@@ -9,7 +9,7 @@ from typing import List, Optional, Dict
 from PySide6.QtCore import QObject, Signal, Property
 
 from models.collectible import Collectible
-from core.collection_tracker import CollectionTracker
+from core.collectibles.collection_tracker import CollectionTracker
 
 
 @dataclass

@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 
 from config import MAP_DIMENSIONS, COLLECTIBLES, EXTERNAL_URLS
 from core import CoordinateTransform, MapLoader, CollectiblesLoader
-from core.image_preprocessing import preprocess_for_matching
+from core.matching.image_preprocessing import preprocess_for_matching
 from matching.simple_matcher import SimpleMatcher
 
 # Import visualization function for failing tests

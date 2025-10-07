@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from matching.cascade_scale_matcher import CascadeScaleMatcher, ScaleConfig
 from matching.simple_matcher import SimpleMatcher
-from core.image_preprocessing import preprocess_with_resize
+from core.matching.image_preprocessing import preprocess_with_resize
 from config import MAP_DIMENSIONS
 
 

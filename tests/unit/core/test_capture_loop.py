@@ -5,7 +5,7 @@ Unit tests for CaptureLoop component.
 import pytest
 import time
 from unittest.mock import Mock
-from core.capture_loop import CaptureLoop
+from core.capture.capture_loop import CaptureLoop
 
 
 class TestCaptureLoopInitialization:
