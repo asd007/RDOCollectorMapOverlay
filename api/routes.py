@@ -56,8 +56,8 @@ def create_app(state: ApplicationState):
                 'error': 'Continuous capture not available'
             }), 503
 
-        # Get base stats from metrics tracker
-        stats = state.capture_service.metrics.get_statistics()
+        # Get base stats from performance monitor
+        stats = state.capture_service.performance_monitor.get_stats()
 
         # Add backend stats if available
         if hasattr(state, 'backend') and state.backend:

@@ -16,7 +16,7 @@ from PySide6.QtCore import QObject, Signal
 
 from matching.viewport_tracker import ViewportKalmanTracker, Viewport
 from core.map_detector import is_map_visible
-from core.metrics import MetricsTracker
+from core.performance_monitor import PerformanceMonitor
 
 
 @dataclass
@@ -212,8 +212,8 @@ class ContinuousCaptureService(QObject):
         self.fps_window_start = time.time()
         self.fps_window_frames = 0
 
-        # Modern metrics tracker (replaces manual stats dict for API endpoints)
-        self.metrics = MetricsTracker(window_seconds=600)  # 10 minutes
+        # Performance monitoring (wraps MetricsTracker for cleaner interface)
+        self.performance_monitor = PerformanceMonitor(window_seconds=600)  # 10 minutes
 
         # Profiling (disabled console spam - use /profiling-stats endpoint instead)
         self.enable_profiling = False
@@ -692,7 +692,7 @@ class ContinuousCaptureService(QObject):
             motion_offset = motion_pred.get('offset_px', (0, 0)) if motion_pred else (0, 0)
             motion_speed = motion_pred.get('speed_px_s', 0) if motion_pred else 0
 
-            self.metrics.record_frame(
+            self.performance_monitor.record_frame(
                 capture_ms=capture_time,
                 match_ms=match_time,
                 overlay_ms=overlay_time,
@@ -766,7 +766,7 @@ class ContinuousCaptureService(QObject):
             # Match failed - don't track timing stats for failures
             # Record failed frame in metrics
             total_time = (time.time() - frame_start) * 1000
-            self.metrics.record_frame(
+            self.performance_monitor.record_frame(
                 capture_ms=capture_time,
                 match_ms=match_time,
                 overlay_ms=0,
