@@ -65,6 +65,7 @@ class SpriteAtlas:
             texture = window.createTextureFromImage(sprite_image)
             if texture:
                 self._gpu_textures[cache_key] = texture
+                print(f"[SpriteAtlas] Created texture: {cache_key}")
                 return texture
             else:
                 print(f"[SpriteAtlas] ERROR: Failed to create texture for {cache_key}")
