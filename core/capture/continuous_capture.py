@@ -279,6 +279,10 @@ class ContinuousCaptureService(QObject):
         frame_start = time.time()
         self.stats['total_frames'] += 1
 
+        # DEBUG: Log first few frames
+        if self.stats['total_frames'] <= 3:
+            print(f"[CaptureService] Processing frame {self.stats['total_frames']}")
+
         # Track frame intervals for FPS calculation
         if self.last_frame_time is not None:
             frame_interval = (frame_start - self.last_frame_time) * 1000
@@ -293,6 +297,8 @@ class ContinuousCaptureService(QObject):
         capture_time = (time.time() - capture_start) * 1000
 
         if error or screenshot is None:
+            if self.stats['no_map_detected'] == 0:  # Log first error
+                print(f"[CaptureService] Capture failed: {error or 'No screenshot'}")
             self.stats['no_map_detected'] += 1
             self._set_result({
                 'success': False,
@@ -312,6 +318,8 @@ class ContinuousCaptureService(QObject):
         match_result = self.matching_coordinator.match(screenshot)
 
         if not match_result or not match_result.get('success'):
+            if self.stats['akaze_frames'] == 0:  # Log first match failure
+                print(f"[CaptureService] Match failed: {match_result}")
             self.stats['no_map_detected'] += 1
             self._set_result({
                 'success': False,
@@ -376,6 +384,11 @@ class ContinuousCaptureService(QObject):
 
         # === 7. EMIT SIGNAL TO QT ===
         self._last_viewport = viewport_dict
+
+        # DEBUG: Log first few successful viewport updates
+        if self.stats['akaze_frames'] <= 3:
+            print(f"[CaptureService] Viewport update {self.stats['akaze_frames']}: x={viewport.x:.1f}, y={viewport.y:.1f}, confidence={viewport.confidence:.2f}, collectibles={len(collectibles)}")
+
         self.viewport_updated.emit(viewport_dict, collectibles)
 
         # === 8. CHECK CYCLE RELOAD ===

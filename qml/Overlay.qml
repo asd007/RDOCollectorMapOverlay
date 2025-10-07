@@ -152,7 +152,7 @@ Window {
     // Collectible sprites (SceneGraph renderer - GPU accelerated) - always click-through
     CollectibleSpritesSceneGraph {
         id: sprites
-        anchors.fill: parent
+        // No anchors - uses explicit dimensions from component (1920x1080)
         z: 0  // Behind UI elements
         // Backend calls set_collectibles() once and set_viewport() every frame
     }
