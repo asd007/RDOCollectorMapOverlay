@@ -343,6 +343,27 @@ class LiveE2ETest:
             cascade_info = result.get('cascade_info', {}) if result else {}
             self._print_cascade_details(cascade_info)
 
+            # Save screenshot for failed matches if requested
+            if self.save_results:
+                timestamp_str = timestamp.strftime("%Y%m%d_%H%M%S_%f")[:-3]
+                screenshot_path = self.output_dir / f"failed_screenshot_{timestamp_str}.png"
+                cv2.imwrite(str(screenshot_path), screenshot)
+
+                result_path = self.output_dir / f"failed_result_{timestamp_str}.json"
+                with open(result_path, 'w') as f:
+                    json.dump({
+                        'success': False,
+                        'error': error,
+                        'capture_time_ms': capture_time,
+                        'match_time_ms': match_time,
+                        'cascade_info': cascade_info,
+                        'timestamp': timestamp.isoformat()
+                    }, f, indent=2)
+
+                print(f"\nFailed match saved:")
+                print(f"  Screenshot: {screenshot_path}")
+                print(f"  Details:    {result_path}")
+
             return {
                 'success': False,
                 'error': error,
