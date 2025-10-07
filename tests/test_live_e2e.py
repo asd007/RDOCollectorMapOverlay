@@ -455,18 +455,14 @@ class LiveE2ETest:
         print(f"\n[3/{total_steps}] Filtering collectibles...")
         start_filter = time.time()
 
-        viewport = {
-            'map_x': result['map_x'],
-            'map_y': result['map_y'],
-            'map_width': result['map_w'],
-            'map_height': result['map_h']
-        }
-
         visible = filter_visible_collectibles(
             self.collectibles,
-            viewport,
-            screenshot.shape[1],
-            screenshot.shape[0]
+            viewport_x=result['map_x'],
+            viewport_y=result['map_y'],
+            viewport_width=result['map_w'],
+            viewport_height=result['map_h'],
+            screen_width=screenshot.shape[1],
+            screen_height=screenshot.shape[0]
         )
         filter_time = (time.time() - start_filter) * 1000
 
