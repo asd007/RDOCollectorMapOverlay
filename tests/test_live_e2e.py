@@ -28,6 +28,16 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import cv2
 import numpy as np
 import mss
+import win32gui
+
+try:
+    from windows_capture import WindowsCapture, Frame, InternalCaptureControl
+    WINDOWS_CAPTURE_AVAILABLE = True
+except ImportError:
+    WINDOWS_CAPTURE_AVAILABLE = False
+    WindowsCapture = None
+    Frame = None
+    InternalCaptureControl = None
 
 from config import MAP_DIMENSIONS
 from config.paths import CachePaths
@@ -37,6 +47,27 @@ from core.collectibles.collectibles_filter import filter_visible_collectibles
 from core.map.coordinate_transform import CoordinateTransform
 from matching.cascade_scale_matcher import CascadeScaleMatcher, ScaleConfig
 from matching.simple_matcher import SimpleMatcher
+
+
+class GameCaptureHandler(WindowsCapture) if WINDOWS_CAPTURE_AVAILABLE else object:
+    """Windows Capture handler for RDR2 game window."""
+
+    def __init__(self, *args, **kwargs):
+        if not WINDOWS_CAPTURE_AVAILABLE:
+            raise RuntimeError("windows-capture library not available")
+        super().__init__(*args, **kwargs)
+        self.latest_frame = None
+
+    def on_frame_arrived(self, frame: Frame, capture_control: InternalCaptureControl):
+        """Callback when new frame arrives."""
+        # Convert frame to numpy array (BGRA format)
+        frame_array = np.array(frame, dtype=np.uint8)
+        height, width = frame.height, frame.width
+        self.latest_frame = frame_array.reshape((height, width, 4))
+
+    def on_closed(self):
+        """Called when capture is closed."""
+        pass
 
 
 class LiveE2ETest:
@@ -64,9 +95,21 @@ class LiveE2ETest:
         self.visualize = visualize
         self.show_window = show_window
         self.output_dir = Path("tests/e2e_results")
+        self.game_capture = None
+        self.rdr2_window_title = None
 
         if save_results or visualize:
             self.output_dir.mkdir(exist_ok=True)
+
+        # Try to find and initialize RDR2 window capture
+        if WINDOWS_CAPTURE_AVAILABLE:
+            self.rdr2_window_title = self._find_rdr2_window()
+            if self.rdr2_window_title:
+                print(f"[Windows Capture] Found RDR2 window: {self.rdr2_window_title}")
+            else:
+                print("[Windows Capture] RDR2 window not found, will use full screen capture")
+        else:
+            print("[Windows Capture] Not available, using MSS full screen capture")
             if save_results:
                 print(f"Results will be saved to: {self.output_dir}")
 
@@ -74,6 +117,25 @@ class LiveE2ETest:
         self._initialize_matcher()
         self._initialize_collectibles()
         print("Initialization complete!\n")
+
+    def _find_rdr2_window(self) -> Optional[str]:
+        """Find Red Dead Redemption 2 window by title."""
+        windows = []
+
+        def enum_handler(hwnd, ctx):
+            if win32gui.IsWindowVisible(hwnd):
+                title = win32gui.GetWindowText(hwnd)
+                if title:
+                    windows.append({'hwnd': hwnd, 'title': title})
+
+        win32gui.EnumWindows(enum_handler, None)
+
+        # Look for RDR2 window
+        for window in windows:
+            if "Red Dead Redemption" in window['title']:
+                return window['title']
+
+        return None
 
     def _initialize_matcher(self):
         """Initialize the cascade matcher using same cache as application."""
@@ -194,9 +256,35 @@ class LiveE2ETest:
 
     def capture_screenshot(self) -> Optional[np.ndarray]:
         """Capture current game screenshot."""
+        # Try Windows Capture API first (captures RDR2 window only)
+        if WINDOWS_CAPTURE_AVAILABLE and self.rdr2_window_title:
+            try:
+                # Create capture instance
+                capture = GameCaptureHandler(
+                    cursor_capture=None,
+                    draw_border=None,
+                    monitor_index=None,
+                    window_name=self.rdr2_window_title
+                )
+
+                # Start capture briefly to get one frame
+                capture.start_free_threaded()
+                time.sleep(0.1)  # Wait for frame
+
+                if capture.latest_frame is not None:
+                    # Convert BGRA to BGR
+                    img = cv2.cvtColor(capture.latest_frame, cv2.COLOR_BGRA2BGR)
+                    return img
+                else:
+                    print("[Windows Capture] No frame captured, falling back to MSS")
+
+            except Exception as e:
+                print(f"[Windows Capture] Failed: {e}, falling back to MSS")
+
+        # Fallback to MSS (full screen capture)
         try:
             with mss.mss() as sct:
-                # Capture primary monitor (adjust if needed)
+                # Capture primary monitor
                 monitor = sct.monitors[1]
                 screenshot = sct.grab(monitor)
 
