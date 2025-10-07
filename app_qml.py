@@ -12,7 +12,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from config import SERVER, MAP_DIMENSIONS
-from core import CoordinateTransform, CollectiblesLoader
+from core.map.coordinate_transform import CoordinateTransform
+from core.collectibles.collectibles_loader import CollectiblesLoader
 from core.capture.continuous_capture import ContinuousCaptureService
 from core.interactions.click_observer import ClickObserver
 from core.state.application_state import ApplicationState

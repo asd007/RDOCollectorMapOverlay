@@ -372,7 +372,7 @@ class OverlayBackend(QObject):
             return
         print("[Hotkey] F6 - Refreshing collectibles...")
         try:
-            from core import CollectiblesLoader
+            from core.collectibles.collectibles_loader import CollectiblesLoader
             collectibles = CollectiblesLoader.load(self._state.coord_transform)
             self._state.set_collectibles(collectibles)
 

@@ -12,7 +12,7 @@ import numpy as np
 import time
 
 from config import MAP_DIMENSIONS
-from core import MapLoader
+from core.map.map_loader import MapLoader
 from core.matching.image_preprocessing import preprocess_for_matching
 from matching.cascade_scale_matcher import CascadeScaleMatcher, ScaleConfig, create_cascade_matcher
 from matching.simple_matcher import SimpleMatcher

@@ -26,7 +26,8 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from config import MAP_DIMENSIONS
-from core import MapLoader, CoordinateTransform
+from core.map.map_loader import MapLoader
+from core.map.coordinate_transform import CoordinateTransform
 from matching.cascade_scale_matcher import CascadeScaleMatcher, ScaleConfig
 from matching import SimpleMatcher
 from core.matching.image_preprocessing import preprocess_with_resize

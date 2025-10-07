@@ -17,7 +17,9 @@ from typing import List, Dict, Tuple
 from datetime import datetime, timezone
 
 from config import MAP_DIMENSIONS, COLLECTIBLES, EXTERNAL_URLS
-from core import CoordinateTransform, MapLoader, CollectiblesLoader
+from core.map.coordinate_transform import CoordinateTransform
+from core.map.map_loader import MapLoader
+from core.collectibles.collectibles_loader import CollectiblesLoader
 from core.matching.image_preprocessing import preprocess_for_matching
 from matching.simple_matcher import SimpleMatcher
 
