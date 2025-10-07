@@ -15,9 +15,9 @@ from config import SERVER, MAP_DIMENSIONS
 from core import CoordinateTransform, CollectiblesLoader
 from core.continuous_capture import ContinuousCaptureService
 from core.click_observer import ClickObserver
+from core.application_state import ApplicationState
 from matching.cascade_scale_matcher import CascadeScaleMatcher, ScaleConfig
 from matching import SimpleMatcher
-from api import OverlayState
 import cv2
 
 # QML imports
@@ -26,8 +26,7 @@ from PySide6.QtGui import QGuiApplication
 from PySide6.QtQml import QQmlApplicationEngine, qmlRegisterType
 
 # Import custom QML types
-from qml.CollectibleCanvas import CollectibleCanvas
-from qml.CollectibleRendererPainted import CollectibleRendererPainted
+from qml.CollectibleRendererSceneGraph import CollectibleRendererSceneGraph
 from qml.OverlayBackend import OverlayBackend
 from qml.ClickThroughManagerFixed import ClickThroughManager, GlobalHotkeyManager
 
@@ -64,7 +63,8 @@ def initialize_system(app=None):
     """
     print("RDO Map Overlay (QML) - Initializing...")
 
-    state = OverlayState()
+    # Create unified application state (Qt main thread)
+    state = ApplicationState(parent=app)
 
     try:
         # Initialize coordinate transform
@@ -184,18 +184,24 @@ def initialize_system(app=None):
                     minimum_update_interval=16
                 )
 
+                frame_count = 0
+
                 @game_capture.event
                 def on_frame_arrived(frame, capture_control):
-                    nonlocal latest_frame
+                    nonlocal latest_frame, frame_count
                     with frame_lock:
                         latest_frame = frame.frame_buffer.copy()
+                        frame_count += 1
+                        if frame_count == 1:
+                            print(f"[GameCapture] First frame received ({frame.frame_buffer.shape})")
 
                 @game_capture.event
                 def on_closed():
-                    print("Game capture closed")
+                    print("[GameCapture] Window closed")
 
-                print(f"Starting capture: {window_title}")
+                print(f"[GameCapture] Starting capture: {window_title}")
                 game_capture.start_free_threaded()
+                print("[GameCapture] Free-threaded capture started, waiting for frames...")
 
                 def capture_screenshot():
                     try:
@@ -285,15 +291,18 @@ def main():
     os.environ['QSG_RENDER_LOOP'] = 'threaded'  # Use threaded render loop
     os.environ['QSG_INFO'] = '1'  # Enable scene graph debug info
 
-    # Create Qt application FIRST (before any threading)
-    app = QGuiApplication(sys.argv)
-    app.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
-
-    # Disable VSync for uncapped frame rate (better responsiveness during panning)
+    # CRITICAL: Configure OpenGL surface format BEFORE creating QApplication
+    # This MUST be done before QGuiApplication is instantiated!
     from PySide6.QtGui import QSurfaceFormat
     format = QSurfaceFormat.defaultFormat()
     format.setSwapInterval(0)  # 0 = disable VSync, 1 = enable (default)
+    format.setAlphaBufferSize(8)  # Enable alpha channel for transparent window rendering
     QSurfaceFormat.setDefaultFormat(format)
+    print("[Main] OpenGL surface configured with alpha buffer for Scene Graph transparency")
+
+    # Create Qt application (after surface format is configured)
+    app = QGuiApplication(sys.argv)
+    app.setHighDpiScaleFactorRoundingPolicy(Qt.HighDpiScaleFactorRoundingPolicy.PassThrough)
 
     try:
         # Initialize backend (pass app for QObject-based services)
@@ -331,14 +340,10 @@ def main():
     print(f"  - POST /start-test-collection - Start test data collection")
     print(f"  - POST /stop-test-collection - Stop test collection")
 
-    # Start continuous capture AFTER Qt initialization
-    if state.capture_service:
-        state.capture_service.start()
-        print(f"Continuous capture started ({state.capture_service.target_fps} fps)")
+    # NOTE: Continuous capture will be started AFTER renderer is initialized (see below)
 
     # Register custom QML types
-    qmlRegisterType(CollectibleCanvas, "RDOOverlay", 1, 0, "CollectibleCanvas")
-    qmlRegisterType(CollectibleRendererPainted, "RDOOverlay", 1, 0, "CollectibleRendererPainted")
+    qmlRegisterType(CollectibleRendererSceneGraph, "RDOOverlay", 1, 0, "CollectibleRendererSceneGraph")
 
     # Create QML engine
     engine = QQmlApplicationEngine()
@@ -410,15 +415,22 @@ def main():
         # Call QML function to update interactive regions
         root_window.updateInteractiveRegions()
 
-        # Get reference to Painted renderer and store in backend
-        painted_renderer = root_window.findChild(CollectibleRendererPainted, "sprites")
-        if painted_renderer:
-            backend.gl_renderer = painted_renderer  # Keep same name for backend compatibility
-            print("[Main] Painted renderer connected to backend")
-            # Load collectibles into renderer now that it's connected
+        # Get reference to SceneGraph renderer (GPU-accelerated) and store in backend
+        scenegraph_renderer = root_window.findChild(CollectibleRendererSceneGraph, "spritesSceneGraph")
+        if scenegraph_renderer:
+            backend.gl_renderer = scenegraph_renderer
+            print("[Main] SceneGraph renderer connected (GPU-accelerated)")
             backend._rebuild_collectibles_cache()
+
+            # Start continuous capture AFTER renderer is fully initialized
+            if state.capture_service:
+                state.capture_service.start()
+                print(f"[Main] Continuous capture started ({state.capture_service.target_fps} fps)")
         else:
-            print("[WARN] Could not find Painted renderer")
+            print("[ERROR] Could not find SceneGraph renderer with objectName 'spritesSceneGraph'")
+            print("[ERROR] Application cannot continue without renderer")
+            app.exit(1)
+            return
 
         # Setup global hotkeys using Windows RegisterHotKey API
         print("[Hotkeys] Registering system-wide hotkeys...")

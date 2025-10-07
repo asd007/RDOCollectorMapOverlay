@@ -150,6 +150,7 @@ class OverlayBackend(QObject):
 
         # Build list of all visible collectibles in detection space
         collectibles_list = []
+        first_collectible = None
         for col in self._state.collectibles:
             # Filter by tracker visibility
             if not self.tracker.is_visible(col.category):
@@ -162,9 +163,21 @@ class OverlayBackend(QObject):
                 'collected': self.tracker.is_collected(col.category, col.name)
             })
 
+            # Store first collectible for detailed logging
+            if first_collectible is None:
+                first_collectible = col
+
         # Pass to renderer (this is NOT on the render loop)
         self.gl_renderer.set_collectibles(collectibles_list)
         print(f"[Backend] Rebuilt collectibles cache: {len(collectibles_list)} items")
+
+        # Log first collectible's coordinates in ALL spaces for verification
+        if first_collectible:
+            print(f"[Backend] First collectible '{first_collectible.name}':")
+            print(f"  LatLng: ({first_collectible.lat:.4f}, {first_collectible.lng:.4f})")
+            print(f"  HQ:     ({first_collectible.hq_x}, {first_collectible.hq_y})")
+            print(f"  Detection: ({first_collectible.x}, {first_collectible.y})")
+            print(f"  Type: {first_collectible.type}")
 
     @Slot(object, object)
     def update_viewport(self, viewport: Dict, collectibles: List[Dict]):
@@ -191,6 +204,10 @@ class OverlayBackend(QObject):
             self._viewport_vy = dy / dt
 
         self._last_viewport_update = current_time
+
+        # Debug: Log first viewport update
+        if self._viewport_update_count == 1:
+            print(f"[Backend] First viewport update: x={viewport['x']}, y={viewport['y']}, w={viewport['width']}, h={viewport['height']}")
 
         # Update viewport transform in renderer
         if self.gl_renderer:
@@ -231,12 +248,9 @@ class OverlayBackend(QObject):
         if self._canvas:
             self._canvas.updateCollectibles(self._visible_collectibles)
 
-        # Direct renderer update - pass screen coords directly (NO conversion)
-        if self.gl_renderer:
-            # Collectibles already have screen_x, screen_y - pass them directly!
-            # ALWAYS update - visible list changes as player moves!
-            # Note: No need to call render_frame() - renderer has its own 30 FPS timer
-            self.gl_renderer.set_collectibles(collectibles)
+        # Scene Graph renderer already has ALL collectibles cached (set in _rebuild_collectibles_cache)
+        # It only needs viewport updates (handled in update_viewport_and_collectibles)
+        # No per-frame collectible updates needed!
 
     def _update_visible_collectibles(self):
         """Filter and transform collectibles to screen coordinates"""

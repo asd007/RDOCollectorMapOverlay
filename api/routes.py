@@ -3,10 +3,10 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from config import SERVER
-from api.state import OverlayState
+from core.application_state import ApplicationState
 
 
-def create_app(state: OverlayState):
+def create_app(state: ApplicationState):
     """
     Create Flask application with minimal routes.
 

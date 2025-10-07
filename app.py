@@ -14,9 +14,10 @@ from config import SERVER, MAP_DIMENSIONS, SCREENSHOT
 from core import CoordinateTransform, MapLoader, CollectiblesLoader
 from core.continuous_capture import ContinuousCaptureService
 from core.port_manager import find_available_port, write_port_file
+from core.application_state import ApplicationState
 from matching.cascade_scale_matcher import CascadeScaleMatcher, ScaleConfig
 from matching import SimpleMatcher
-from api import OverlayState, create_app
+from api import create_app
 import cv2
 
 # Import Windows capture
@@ -48,7 +49,7 @@ def initialize_system():
     """Initialize the overlay system"""
     print("RDO Map Overlay - Initializing...")
 
-    state = OverlayState()
+    state = ApplicationState()
 
     try:
         # Initialize coordinate transform

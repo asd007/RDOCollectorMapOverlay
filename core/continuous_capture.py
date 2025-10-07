@@ -452,6 +452,9 @@ class ContinuousCaptureService(QObject):
             capture_time = (time.time() - capture_start) * 1000
 
             if error:
+                # Debug: Log first capture error only
+                if self.stats['no_map_detected'] == 0:
+                    print(f"[CAPTURE THREAD] Capture error (will suppress further): {error}")
                 self._set_result({
                     'success': False,
                     'error': error,
@@ -495,7 +498,19 @@ class ContinuousCaptureService(QObject):
             match_time = (time.time() - match_start) * 1000
         except FuturesTimeoutError:
             match_time = (time.time() - match_start) * 1000
+            print(f"[CAPTURE] Matcher timed out after 6 seconds")
             result = None
+        except Exception as e:
+            match_time = (time.time() - match_start) * 1000
+            print(f"[CAPTURE] Matcher exception: {e}")
+            result = None
+
+        # Debug: Log first match attempt result
+        if self.stats['total_frames'] <= 3:
+            if result:
+                print(f"[CAPTURE] Match result: success={result.get('success')}, confidence={result.get('confidence', 0):.2f}, inliers={result.get('inliers', 0)}")
+            else:
+                print(f"[CAPTURE] Match result: None")
 
         # Process result
         if result and result.get('success'):

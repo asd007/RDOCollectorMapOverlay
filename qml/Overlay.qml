@@ -149,12 +149,12 @@ Window {
         }
     }
 
-    // Collectible sprites (Painted renderer) - always click-through
-    CollectibleSpritesPainted {
+    // Collectible sprites (SceneGraph renderer - GPU accelerated) - always click-through
+    CollectibleSpritesSceneGraph {
         id: sprites
         anchors.fill: parent
         z: 0  // Behind UI elements
-        // Backend calls render_frame() directly, no QML bindings
+        // Backend calls set_collectibles() once and set_viewport() every frame
     }
 
     // Bottom overlay container (centered at bottom) - click-through
